@@ -40,22 +40,24 @@ class VideoManager:
             }
             json.dump(data, f)
 
-    async def remove_video(self, name):
+    async def remove_video(self, identifier, identifier_type):
         removed_url = None
+        removed_name = None
 
         async with aiosqlite.connect("videos.db") as db:
             for color in ["green", "red", "yellow"]:
-                query = "SELECT * FROM videos WHERE name = ? AND color = ?"
-                values = (name, color)
+                query = f"SELECT * FROM videos WHERE {identifier_type} = ? AND color = ?"
+                values = (identifier, color)
                 async with db.execute(query, values) as cursor:
                     result = await cursor.fetchone()
                     if result is not None:
+                        removed_name = result[1]
                         removed_url = result[2]
-                        await db.execute("DELETE FROM videos WHERE name = ? AND color = ?", (name, color))
+                        await db.execute(f"DELETE FROM videos WHERE {identifier_type} = ? AND color = ?", (identifier, color))
                         await db.commit()
                         break
 
-        if removed_url is not None:
+        if removed_url is not None and removed_name is not None:
             with open("video_data.json", "r") as file:
                 data = json.load(file)
                 video_lists = data.get("video_lists", {})
@@ -73,7 +75,7 @@ class VideoManager:
             with open("video_data.json", "w") as file:
                 json.dump({"video_lists": video_lists, "played_videos": played_videos}, file, indent=4)
 
-        return removed_url
+        return removed_url, removed_name
 
     async def get_available_videos(self, colors):
         current_time = time.time()
