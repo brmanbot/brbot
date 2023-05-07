@@ -1,6 +1,7 @@
 import aiosqlite
 import random
 import time
+from config import COOLDOWN
 
 video_lists = {}
 last_reset = {}
@@ -46,7 +47,7 @@ async def get_available_videos(colors):
 
     async with aiosqlite.connect("videos.db") as db:
         for c in colors:
-            if not video_lists[c] or (current_time - last_reset[c] > 129600):
+            if not video_lists[c] or (current_time - last_reset[c] > COOLDOWN):
                 query = "SELECT url FROM videos WHERE color = ?"
                 values = (c,)
                 async with db.execute(query, values) as cursor:
