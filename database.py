@@ -36,27 +36,3 @@ async def add_video_to_database(name, url, color, original_url):
         values = (name, url, color, original_url)
         await db.execute(query, values)
         await db.commit()
-
-
-async def get_available_videos(colors):
-    global video_lists
-    global last_reset
-
-    current_time = time.time()
-    available_videos = []
-
-    async with aiosqlite.connect("videos.db") as db:
-        for c in colors:
-            if not video_lists[c] or (current_time - last_reset[c] > COOLDOWN):
-                query = "SELECT url FROM videos WHERE color = ?"
-                values = (c,)
-                async with db.execute(query, values) as cursor:
-                    results = await cursor.fetchall()
-
-                video_lists[c] = [url for url, in results]
-                last_reset[c] = current_time
-                fisher_yates_shuffle(video_lists[c])
-
-            available_videos.extend(video_lists[c])
-
-    return available_videos
