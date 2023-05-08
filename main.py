@@ -5,6 +5,7 @@ from disnake.ext import commands
 from config import ALLOWED_USER_ID, BOSSMANROLE_ID, BOT_TOKEN, INTENTS
 from utils import VideoManager, autocomp_colours, bot
 from commands import __all__ as commands_list
+from database import initialize_database
 
 
 video_manager = VideoManager()
@@ -17,6 +18,8 @@ async def on_ready():
 
 
 async def main():
+    await initialize_database()
+
     try:
         await bot.start(BOT_TOKEN)
     except KeyboardInterrupt:

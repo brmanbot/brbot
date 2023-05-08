@@ -27,26 +27,19 @@ async def myreaction(ctx):
         await ctx.followup.send("All green and red videos have been played. Contact brman to fix.")
         return
 
-    all_played_recently = True
-    while all_played_recently:
+    chosen_video = None
+    while available_videos:
         fisher_yates_shuffle(available_videos)
-        chosen_video = available_videos.pop()
+        candidate_video = available_videos.pop()
 
-        played_time = played_videos.get(chosen_video, 0)
+        played_time = played_videos.get(candidate_video, 0)
         if current_time - played_time > COOLDOWN:
-            all_played_recently = False
-        else:
-            if not available_videos:
-                for c in ["green", "red"]:
-                    query = "SELECT url FROM videos WHERE color = ?"
-                    values = (c,)
-                    async with aiosqlite.connect("videos.db") as db:
-                        async with db.execute(query, values) as cursor:
-                            results = await cursor.fetchall()
+            chosen_video = candidate_video
+            break
 
-                    video_lists[c] = [url for url, in results]
-                    fisher_yates_shuffle(video_lists[c])
-                    available_videos.extend(video_lists[c])
+    if not chosen_video:
+        await ctx.followup.send("No videos found that meet the cooldown requirement.")
+        return
 
     selected_color = [c for c in ["green", "red"] if chosen_video in video_lists[c]][0]
     video_lists[selected_color].remove(chosen_video)

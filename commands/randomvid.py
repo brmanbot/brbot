@@ -38,20 +38,19 @@ async def randomvid(ctx, colour: str = None):
             await ctx.followup.send(f"No {colour} videos found in the database.")
         return
 
-    all_played_recently = True
-    while all_played_recently:
+    chosen_video = None
+    while available_videos:
         fisher_yates_shuffle(available_videos)
-        chosen_video = available_videos.pop()
+        candidate_video = available_videos.pop()
 
-        played_time = played_videos.get(chosen_video, 0)
+        played_time = played_videos.get(candidate_video, 0)
         if current_time - played_time > COOLDOWN:
-            all_played_recently = False
-        else:
-            if not available_videos:
-                if colour is None:
-                    available_videos = await get_available_videos(["green", "red", "yellow"])
-                else:
-                    available_videos = await get_available_videos([colour])
+            chosen_video = candidate_video
+            break
+
+    if not chosen_video:
+        await ctx.followup.send("No videos found that meet the cooldown requirement.")
+        return
 
     await ctx.edit_original_message(content=f"{chosen_video}")
 
