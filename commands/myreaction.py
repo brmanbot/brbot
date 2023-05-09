@@ -1,13 +1,9 @@
 import aiosqlite
 import time
-from utils import bot, fisher_yates_shuffle, VideoManager
+from utils import bot, fisher_yates_shuffle
 from config import COOLDOWN, GUILD_IDS
 
-video_manager = VideoManager()
-played_videos = video_manager.played_videos
-get_available_videos = video_manager.get_available_videos
-video_lists = video_manager.video_lists
-
+video_manager = None
 
 @bot.slash_command(
     name="myreaction",
@@ -17,11 +13,11 @@ video_lists = video_manager.video_lists
 async def myreaction(ctx):
     await ctx.response.defer()
 
-    global played_videos
-
+    global video_manager
+    played_videos = video_manager.played_videos
     current_time = time.time()
 
-    available_videos = await get_available_videos(["green", "red"])
+    available_videos = await video_manager.get_available_videos(["green", "red"])
 
     if not available_videos:
         await ctx.followup.send("All green and red videos have been played. Contact brman to fix.")
@@ -41,6 +37,7 @@ async def myreaction(ctx):
         await ctx.followup.send("No videos found that meet the cooldown requirement.")
         return
 
+    video_lists = video_manager.video_lists
     selected_color = [c for c in ["green", "red"] if chosen_video in video_lists[c]][0]
     video_lists[selected_color].remove(chosen_video)
 

@@ -11,6 +11,12 @@ from database import initialize_database
 video_manager = VideoManager()
 video_manager.load_data()
 
+import commands.randomvid as randomvid_module
+import commands.myreaction as myreaction_module
+
+randomvid_module.video_manager = video_manager
+myreaction_module.video_manager = video_manager
+
 
 @bot.event
 async def on_ready():

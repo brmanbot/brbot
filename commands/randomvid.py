@@ -1,11 +1,9 @@
 import disnake
-from utils import bot, fisher_yates_shuffle, VideoManager
+from utils import bot, fisher_yates_shuffle
 from config import COOLDOWN, GUILD_IDS
 import time
 
-video_manager = VideoManager()
-played_videos = video_manager.played_videos
-get_available_videos = video_manager.get_available_videos
+video_manager = None
 
 @bot.slash_command(
     name="randomvid",
@@ -22,14 +20,14 @@ get_available_videos = video_manager.get_available_videos
 async def randomvid(ctx, colour: str = None):
     await ctx.response.defer()
 
-    global played_videos
-
+    global video_manager
+    played_videos = video_manager.played_videos
     current_time = time.time()
 
     if colour is None:
-        available_videos = await get_available_videos(["green", "red", "yellow"])
+        available_videos = await video_manager.get_available_videos(["green", "red", "yellow"])
     else:
-        available_videos = await get_available_videos([colour])
+        available_videos = await video_manager.get_available_videos([colour])
 
     if not available_videos:
         if colour is None:
