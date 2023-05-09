@@ -1,10 +1,9 @@
-import aiosqlite
 import disnake
-from utils import bot, VideoManager
+import aiosqlite
+from utils import bot
 from config import GUILD_IDS
 
-video_manager = VideoManager()
-remove_video = video_manager.remove_video
+video_manager = None
 
 class DeleteVideoView(disnake.ui.View):
     def __init__(self, ctx, url, name, colour):
@@ -23,7 +22,8 @@ class DeleteVideoView(disnake.ui.View):
 
     @disnake.ui.button(label="Confirm Deletion", style=disnake.ButtonStyle.green, custom_id="confirm_deletion", row=1, disabled=True)
     async def confirm_button(self, button: disnake.ui.Button, interaction: disnake.Interaction):
-        removed_url, removed_name = await remove_video(self.url, "url")
+        global video_manager
+        removed_url, removed_name = await video_manager.remove_video(self.url, "url")
         if removed_url and removed_name:
             await interaction.response.edit_message(content=f"Deleted `{removed_name}` from the database.", view=None)
         else:
@@ -45,6 +45,7 @@ class DeleteVideoView(disnake.ui.View):
     ]
 )
 async def findvid(ctx, url: str):
+    global video_manager
     async with aiosqlite.connect("videos.db") as db:
         query = "SELECT name, color FROM videos WHERE url = ? OR original_url = ?"
         values = (url, url)

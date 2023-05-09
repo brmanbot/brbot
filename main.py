@@ -13,9 +13,13 @@ video_manager.load_data()
 
 import commands.randomvid as randomvid_module
 import commands.myreaction as myreaction_module
+import commands.findvid as findvid_module
+import commands.delvid as delvid_module
 
 randomvid_module.video_manager = video_manager
 myreaction_module.video_manager = video_manager
+findvid_module.video_manager = video_manager
+delvid_module.video_manager = video_manager
 
 
 @bot.event

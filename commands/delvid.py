@@ -1,10 +1,8 @@
 import disnake
-from disnake.ext import commands
-from utils import has_role_check, VideoManager, bot
+from utils import has_role_check, bot
 from config import GUILD_IDS
 
-video_manager = VideoManager()
-
+video_manager = None
 
 @bot.slash_command(
     name="delvid",
@@ -15,6 +13,7 @@ video_manager = VideoManager()
     ]
 )
 async def delvid(inter, identifier: str):
+    global video_manager
     if not await has_role_check(inter):
         await inter.response.send_message("You do not have the required role to run this command.")
         return

@@ -58,22 +58,16 @@ class VideoManager:
                         break
 
         if removed_url is not None and removed_name is not None:
-            with open("video_data.json", "r") as file:
-                data = json.load(file)
-                video_lists = data.get("video_lists", {})
-                played_videos = data.get("played_videos", {})
-
             for color in ["green", "red", "yellow"]:
-                if color not in video_lists:
-                    video_lists[color] = []
-                if removed_url in video_lists[color]:
-                    video_lists[color].remove(removed_url)
+                if color not in self.video_lists:
+                    self.video_lists[color] = []
+                if removed_url in self.video_lists[color]:
+                    self.video_lists[color].remove(removed_url)
 
-            if removed_url in played_videos:
-                del played_videos[removed_url]
+            if removed_url in self.played_videos:
+                del self.played_videos[removed_url]
 
-            with open("video_data.json", "w") as file:
-                json.dump({"video_lists": video_lists, "played_videos": played_videos}, file, indent=4)
+            self.save_data()
 
         return removed_url, removed_name
 
