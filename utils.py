@@ -20,6 +20,8 @@ class VideoManager:
         self.last_reset = {}
         self.played_videos = {}
         self.load_data()
+        self.db_path = "videos.db"
+        self.data = {"green": [], "red": [], "yellow": []}
 
     def load_data(self):
         try:
@@ -90,6 +92,51 @@ class VideoManager:
                 available_videos.extend(self.video_lists[c])
 
         return available_videos
+    
+    async def get_video_url(self, name: str):
+        async with aiosqlite.connect(self.db_path) as db:
+            query = "SELECT url FROM videos WHERE name = ?"
+            values = (name,)
+            async with db.execute(query, values) as cursor:
+                result = await cursor.fetchone()
+
+            if result is not None:
+                return result[0]
+            else:
+                return None
+
+    async def get_video_color(self, name: str):
+        async with aiosqlite.connect(self.db_path) as db:
+            query = "SELECT color FROM videos WHERE name = ?"
+            values = (name,)
+            async with db.execute(query, values) as cursor:
+                result = await cursor.fetchone()
+
+            if result is not None:
+                return result[0]
+            else:
+                return None
+            
+    async def change_video_color(self, name: str, new_color: str):
+        old_color = await self.get_video_color(name)
+        url = await self.get_video_url(name)
+        if old_color is not None and url is not None:
+            async with aiosqlite.connect(self.db_path) as db:
+                query = "UPDATE videos SET color = ? WHERE name = ?"
+                values = (new_color, name)
+                await db.execute(query, values)
+                await db.commit()
+
+            if old_color in self.video_lists:
+                if url in self.video_lists[old_color]:
+                    self.video_lists[old_color].remove(url)
+
+            if new_color in self.video_lists:
+                self.video_lists[new_color].append(url)
+            else:
+                self.video_lists[new_color] = [url]
+
+            self.save_data()
 
 
 async def shorten_url(url: str) -> str:
