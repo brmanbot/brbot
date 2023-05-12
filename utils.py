@@ -169,4 +169,3 @@ async def has_role_check(ctx):
     is_bossman = disnake.utils.get(user_roles, id=BOSSMANROLE_ID) is not None
     is_allowed_user = user_id == ALLOWED_USER_ID
     return is_bossman or is_allowed_user
-
