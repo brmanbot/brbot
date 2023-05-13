@@ -22,7 +22,7 @@ def format_cooldown(cooldown_value):
 
 @bot.slash_command(
     name="showcooldown",
-    description="Display the current cooldown for the random video command.",
+    description="Display the current cooldown.",
     guild_ids=GUILD_IDS,
 )
 async def showcooldown(ctx):

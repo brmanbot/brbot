@@ -17,16 +17,16 @@ video_manager = None
 async def changevidcolour(inter: disnake.ApplicationCommandInteraction, name: str, colour: str):
     valid_colours = ["green", "red", "yellow"]
     if colour.lower() not in valid_colours:
-        await inter.response.send_message("Invalid colour. Please use `green`, `red`, or `yellow`.")
+        await inter.response.send_message("Invalid colour. Please use `green`, `red`, or `yellow`.", ephemeral=True)
         return
 
     old_colour = await video_manager.get_video_color(name)
     if old_colour is None:
-        await inter.response.send_message(f"No video found with name `{name}`")
+        await inter.response.send_message(f"No video found with name `{name}`", ephemeral=True)
         return
 
     if old_colour == colour:
-        await inter.response.send_message(f"The video `{name}` is already in the `{colour}` database.")
+        await inter.response.send_message(f"The video `{name}` is already in the `{colour}` database.", ephemeral=True)
         return
 
     await video_manager.change_video_color(name, colour)

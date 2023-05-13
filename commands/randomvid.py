@@ -33,7 +33,7 @@ async def randomvid(ctx, colour: str = None):
         if colour is None:
             await ctx.followup.send("All videos have been played. Contact brman to fix.")
         else:
-            await ctx.followup.send(f"No {colour} videos found in the database.")
+            await ctx.followup.send(f"No {colour} videos found in the database.", ephemeral=True)
         return
 
     chosen_video = None

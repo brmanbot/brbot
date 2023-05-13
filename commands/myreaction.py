@@ -34,7 +34,7 @@ async def myreaction(ctx):
             break
 
     if not chosen_video:
-        await ctx.followup.send("No videos found that meet the cooldown requirement.")
+        await ctx.followup.send("No videos found that meet the cooldown requirement.", ephemeral=True)
         return
 
     video_lists = video_manager.video_lists

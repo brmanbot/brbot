@@ -15,7 +15,7 @@ video_manager = None
 async def delvid(inter, identifier: str):
     global video_manager
     if not await has_role_check(inter):
-        await inter.response.send_message("You do not have the required role to run this command.")
+        await inter.response.send_message("You do not have the required role to run this command.", ephemeral=True)
         return
 
     identifier_type = "url" if identifier.startswith("https://tinyurl.com/") else "name"
@@ -24,4 +24,4 @@ async def delvid(inter, identifier: str):
     if removed_url is not None and removed_name is not None:
         await inter.response.send_message(f"Deleted `{removed_name}` from the database.")
     else:
-        await inter.response.send_message(f"Failed to delete `{identifier}`: video not found in the database.")
+        await inter.response.send_message(f"Failed to delete `{identifier}`: Video not found in the database.", ephemeral=True)

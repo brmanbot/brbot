@@ -19,7 +19,7 @@ async def getvid(ctx, name: str):
             result = await cursor.fetchone()
 
             if result is None:
-                await ctx.response.send_message(f"No video found with name `{name}`")
+                await ctx.response.send_message(f"No video found with name `{name}`", ephemeral=True)
             else:
                 await ctx.response.send_message(result[0])
 

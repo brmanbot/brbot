@@ -18,7 +18,7 @@ from utils import bot
 )
 async def updatecooldown(ctx, value: int, unit: str):
     if ctx.author.id != ALLOWED_USER_ID:
-        await ctx.send("You do not have permission to use this command.")
+        await ctx.send("You do not have permission to use this command.", ephemeral=True)
         return
 
     if value < 0:

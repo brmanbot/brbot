@@ -53,7 +53,7 @@ async def findvid(ctx, url: str):
             result = await cursor.fetchone()
 
         if result is None:
-            await ctx.response.send_message("No video found with the given URL.")
+            await ctx.response.send_message("No video found with the given URL.", ephemeral=True)
         else:
             name, colour = result
             view = DeleteVideoView(ctx, url, name, colour)
