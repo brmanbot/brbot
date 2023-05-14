@@ -3,7 +3,6 @@ import disnake
 from disnake.ext import commands
 import asyncio
 
-
 from config import (
     GREEN_ROLE_ID,
     RED_ROLE_ID,
@@ -16,7 +15,7 @@ from config import (
     GUILD_IDS
 )
 from database import fisher_yates_shuffle
-from utils import VideoManager, bot, load_setup_data, store_setup_data, setup_data, load_role_timestamps, store_role_timestamps
+from utils import bot, load_setup_data, store_setup_data, load_role_timestamps, store_role_timestamps, setup_data
 
 video_manager = None
 

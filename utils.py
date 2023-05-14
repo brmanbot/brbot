@@ -219,3 +219,5 @@ def store_role_timestamps(guild_id, timestamps):
     data[guild_id] = timestamps
     with open("role_timestamps.json", "w") as file:
         json.dump(data, file)
+
+setup_data = {"message_id": 0, "channel_id": 0, "target_channel_id": 0}
