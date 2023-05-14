@@ -1,4 +1,5 @@
 import json
+import os
 import time
 import aiosqlite
 import pyshorteners
@@ -169,3 +170,52 @@ async def has_role_check(ctx):
     is_bossman = disnake.utils.get(user_roles, id=BOSSMANROLE_ID) is not None
     is_allowed_user = user_id == ALLOWED_USER_ID
     return is_bossman or is_allowed_user
+
+def load_setup_data(guild_id):
+    guild_id = str(guild_id)
+    if not os.path.exists("config_data.json"):
+        return 0, 0, 0
+
+    with open("config_data.json", "r") as f:
+        data = json.load(f)
+
+    if guild_id in data:
+        return data[guild_id]["message_id"], data[guild_id]["channel_id"], data[guild_id]["target_channel_id"]
+    else:
+        return 0, 0, 0
+
+def store_setup_data(guild_id, message_id, channel_id, target_channel_id):
+    guild_id = str(guild_id)
+    if not os.path.exists("config_data.json"):
+        data = {}
+    else:
+        with open("config_data.json", "r") as f:
+            data = json.load(f)
+
+    data[guild_id] = {
+        "message_id": message_id,
+        "channel_id": channel_id,
+        "target_channel_id": target_channel_id
+    }
+
+    with open("config_data.json", "w") as f:
+        json.dump(data, f, indent=4)
+
+    return None
+
+def load_role_timestamps(guild_id):
+    guild_id = str(guild_id)
+    if os.path.exists("role_timestamps.json"):
+        with open("role_timestamps.json", "r") as file:
+            data = json.load(file)
+        if guild_id in data:
+            return data[guild_id]
+    return {}
+
+def store_role_timestamps(guild_id, timestamps):
+    guild_id = str(guild_id)
+    with open("role_timestamps.json", "r") as file:
+        data = json.load(file)
+    data[guild_id] = timestamps
+    with open("role_timestamps.json", "w") as file:
+        json.dump(data, file)

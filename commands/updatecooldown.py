@@ -33,4 +33,4 @@ async def updatecooldown(ctx, value: int, unit: str):
         value_seconds = value
 
     update_cooldown(value_seconds)
-    await ctx.send(f"Cooldown updated to {value} {unit}.")
+    await ctx.send(f"Cooldown updated to `{value} {unit}`.")

@@ -28,4 +28,4 @@ def format_cooldown(cooldown_value):
 async def showcooldown(ctx):
     cooldown_value = get_cooldown()
     cooldown_formatted = format_cooldown(cooldown_value)
-    await ctx.send(f"Current cooldown is: {cooldown_formatted}")
+    await ctx.send(f"Current cooldown is: `{cooldown_formatted}`")
