@@ -1,6 +1,10 @@
 import disnake
 import json
-from private_config import BOT_TOKEN, GUILD_IDS, ADMIN, ADMIN_ROLE, GREEN, RED, YELLOW
+from private_config import (
+    BOT_TOKEN, GUILD_IDS, ADMIN, ADMIN_ROLE, 
+    GREEN, RED, YELLOW, 
+    GREEN_ROLE_DURATION, RED_ROLE_DURATION, YELLOW_ROLE_DURATION
+)
 
 BOSSMANROLE_ID = ADMIN_ROLE
 ALLOWED_USER_ID = ADMIN
@@ -12,31 +16,30 @@ INTENTS.typing = False
 INTENTS.presences = False
 INTENTS.message_content = True
 
-BOT_TOKEN = BOT_TOKEN
-GUILD_IDS = GUILD_IDS
-
 GREEN_ROLE_ID = GREEN
 RED_ROLE_ID = RED
 YELLOW_ROLE_ID = YELLOW
 
-GREEN_ROLE_DURATION = 30
-RED_ROLE_DURATION = 30
-YELLOW_ROLE_DURATION = 30
-
-def read_config_data():
-    with open("config_data.json", "r") as file:
-        data = json.load(file)
-    return data
+def get_config_data():
+    try:
+        with open("config_data.json", "r") as file:
+            data = json.load(file)
+        return data
+    except FileNotFoundError:
+        print("config_data.json file does not exist.")
+        return {}
 
 def get_cooldown():
-    config_data = read_config_data()
-    return config_data["cooldown"]
+    config_data = get_config_data()
+    return config_data.get("cooldown", None)
 
 def update_cooldown(value):
-    config_data = read_config_data()
+    config_data = get_config_data()
     config_data["cooldown"] = value
-    with open("config_data.json", "w") as file:
-        json.dump(config_data, file)
+    try:
+        with open("config_data.json", "w") as file:
+            json.dump(config_data, file)
+    except Exception as e:
+        print(f"An error occurred while updating cooldown: {e}")
 
-config_data = read_config_data()
-COOLDOWN = config_data["cooldown"]
+COOLDOWN = get_cooldown()

@@ -8,7 +8,7 @@ import pyshorteners
 import disnake
 
 from disnake.ext import commands
-from disnake import ApplicationCommandInteraction, NotFound
+from disnake import ApplicationCommandInteraction
 
 from config import BOSSMANROLE_ID, ALLOWED_USER_ID, INTENTS
 from database import fisher_yates_shuffle
@@ -16,7 +16,11 @@ from database import fisher_yates_shuffle
 
 bot = commands.Bot(command_prefix=disnake.ext.commands.when_mentioned, intents=INTENTS)
 
+setup_data = {"message_id": 0, "channel_id": 0, "target_channel_id": 0}
 
+COLORS = ["green", "red", "yellow"]
+
+# Video Manager Class
 class VideoManager:
     def __init__(self):
         self.video_lists = {}
@@ -50,7 +54,7 @@ class VideoManager:
         removed_name = None
 
         async with aiosqlite.connect("videos.db") as db:
-            for color in ["green", "red", "yellow"]:
+            for color in COLORS:
                 query = f"SELECT * FROM videos WHERE {identifier_type} = ? AND color = ?"
                 values = (identifier, color)
                 async with db.execute(query, values) as cursor:
@@ -63,7 +67,7 @@ class VideoManager:
                         break
 
         if removed_url is not None and removed_name is not None:
-            for color in ["green", "red", "yellow"]:
+            for color in COLORS:
                 if color not in self.video_lists:
                     self.video_lists[color] = []
                 if removed_url in self.video_lists[color]:
@@ -142,6 +146,7 @@ class VideoManager:
             self.save_data()
 
 
+# Utility Functions
 async def shorten_url(url: str) -> str:
     s = pyshorteners.Shortener()
     try:
@@ -174,6 +179,7 @@ async def has_role_check(ctx):
     return is_bossman or is_allowed_user
 
 
+# Setup Data Management Functions
 def load_setup_data(guild_id):
     guild_id = str(guild_id)
     if not os.path.exists("config_data.json"):
@@ -208,6 +214,7 @@ def store_setup_data(guild_id, message_id, channel_id, target_channel_id):
     return None
 
 
+# Role Timestamps Management Functions
 def load_role_timestamps(guild_id):
     guild_id = str(guild_id)
     if os.path.exists("role_timestamps.json"):
@@ -239,6 +246,7 @@ def update_guild_role_timestamps(guild_id, role_timestamps):
     with open("role_timestamps.json", "w") as file:
         json.dump(data, file)
 
+
 def load_all_role_timestamps():
     if os.path.exists("role_timestamps.json"):
         with open("role_timestamps.json", "r") as file:
@@ -247,6 +255,7 @@ def load_all_role_timestamps():
     return {}
 
 
+# Role Management Functions
 async def schedule_role_removals(bot):
     role_removal_data = load_all_role_timestamps()
     for guild in bot.guilds:
@@ -309,6 +318,3 @@ async def remove_role_later(member, role_id, duration):
 
     with open("role_timestamps.json", "w") as file:
         json.dump(role_timestamps, file)
-
-
-setup_data = {"message_id": 0, "channel_id": 0, "target_channel_id": 0}

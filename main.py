@@ -1,29 +1,21 @@
-import disnake
 import asyncio
+import disnake
 from disnake.ext import commands
 
 from config import ALLOWED_USER_ID, BOSSMANROLE_ID, BOT_TOKEN, INTENTS
 from utils import VideoManager, autocomp_colours, bot, load_setup_data, schedule_role_removals, setup_data
-from commands import __all__ as commands_list
 from database import initialize_database
 
+import importlib
+import pkgutil
+
+command_modules = [importlib.import_module(f'commands.{name}') for _, name, _ in pkgutil.iter_modules(['commands'])]
 
 video_manager = VideoManager()
 video_manager.load_data()
 
-import commands.randomvid as randomvid_module
-import commands.myreaction as myreaction_module
-import commands.findvid as findvid_module
-import commands.delvid as delvid_module
-import commands.changevidcolour as changevidcolour_module
-import commands.setupreactions as setupreactions_module
-
-changevidcolour_module.video_manager = video_manager
-randomvid_module.video_manager = video_manager
-myreaction_module.video_manager = video_manager
-findvid_module.video_manager = video_manager
-delvid_module.video_manager = video_manager
-setupreactions_module.video_manager = video_manager
+for module in command_modules:
+    module.video_manager = video_manager
 
 async def setup_reaction_handler_on_restart():
     for guild in bot.guilds:

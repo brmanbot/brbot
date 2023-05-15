@@ -1,7 +1,10 @@
 import aiosqlite
 import random
 import time
+import logging
 from config import COOLDOWN
+
+DATABASE_NAME = "videos.db"
 
 video_lists = {}
 last_reset = {}
@@ -15,7 +18,7 @@ def fisher_yates_shuffle(arr):
 
 async def initialize_database():
     try:
-        async with aiosqlite.connect("videos.db") as db:
+        async with aiosqlite.connect(DATABASE_NAME) as db:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS videos (
                     id INTEGER PRIMARY KEY,
@@ -26,13 +29,16 @@ async def initialize_database():
                 )
             """)
             await db.commit()
-    except Exception as e:
-        print(f"Error initializing the database: {e}")
+    except aiosqlite.OperationalError as e:
+        logging.error(f"Error initializing the database: {e}")
 
 
 async def add_video_to_database(name, url, color, original_url):
-    async with aiosqlite.connect("videos.db") as db:
+    async with aiosqlite.connect(DATABASE_NAME) as db:
         query = "INSERT INTO videos (name, url, color, original_url) VALUES (?, ?, ?, ?)"
         values = (name, url, color, original_url)
-        await db.execute(query, values)
-        await db.commit()
+        try:
+            await db.execute(query, values)
+            await db.commit()
+        except aiosqlite.IntegrityError as e:
+            logging.error(f"Error adding video to the database: {e}")
