@@ -124,7 +124,6 @@ async def on_raw_reaction_add(payload):
 
     bot.loop.create_task(remove_role_later(member, role_id, role_duration))
 
-
     played_videos = video_manager.played_videos
     current_time = time.time()
 
