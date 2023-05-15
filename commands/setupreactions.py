@@ -1,3 +1,4 @@
+import datetime
 import time
 import disnake
 from disnake.ext import commands
@@ -15,7 +16,7 @@ from config import (
     GUILD_IDS
 )
 from database import fisher_yates_shuffle
-from utils import bot, load_setup_data, store_setup_data, load_role_timestamps, store_role_timestamps, setup_data
+from utils import bot, load_setup_data, remove_role_later, store_setup_data, load_role_timestamps, store_role_timestamps, setup_data
 
 video_manager = None
 
@@ -117,16 +118,12 @@ async def on_raw_reaction_add(payload):
     await member.add_roles(role)
 
     role_timestamps = load_role_timestamps(guild.id)
-    role_timestamps[str(role_id)] = time.time() + role_duration
-    store_role_timestamps(guild.id, role_timestamps)
+    removal_timestamp = time.time() + role_duration
+    role_timestamps[str(payload.user_id)] = removal_timestamp
+    store_role_timestamps(guild.id, payload.user_id, removal_timestamp, role_id)
 
-    async def remove_role_later(member, role, delay):
-        await asyncio.sleep(delay)
-        updated_member = guild.get_member(member.id)
-        if updated_member:
-            await updated_member.remove_roles(role)
+    bot.loop.create_task(remove_role_later(member, role_id, role_duration))
 
-    bot.loop.create_task(remove_role_later(member, role, role_duration))
 
     played_videos = video_manager.played_videos
     current_time = time.time()

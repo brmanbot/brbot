@@ -1,1 +1,9 @@
-{"cooldown": 604800}
+{
+    "cooldown": 691200,
+    "reaction_handler": {},
+    "737699960769740930": {
+        "message_id": 1107442769603080272,
+        "channel_id": 737699961482903629,
+        "target_channel_id": 737699961482903629
+    }
+}

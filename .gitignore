@@ -3,5 +3,3 @@ commands/__pycache__
 private_config.py
 videos.db
 video_data.json
-config_data.json
-role_timestamps.json

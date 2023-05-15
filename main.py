@@ -3,7 +3,7 @@ import asyncio
 from disnake.ext import commands
 
 from config import ALLOWED_USER_ID, BOSSMANROLE_ID, BOT_TOKEN, INTENTS
-from utils import VideoManager, autocomp_colours, bot, load_setup_data, setup_data
+from utils import VideoManager, autocomp_colours, bot, load_setup_data, schedule_role_removals, setup_data
 from commands import __all__ as commands_list
 from database import initialize_database
 
@@ -40,6 +40,7 @@ async def setup_reaction_handler_on_restart():
 async def on_ready():
     print(f"Bot is ready as {bot.user}!")
     await setup_reaction_handler_on_restart()
+    await schedule_role_removals(bot)
 
 async def main():
     await initialize_database()
