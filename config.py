@@ -2,8 +2,7 @@ import disnake
 import json
 from private_config import (
     BOT_TOKEN, GUILD_IDS, ADMIN, ADMIN_ROLE, 
-    GREEN, RED, YELLOW, 
-    GREEN_ROLE_DURATION, RED_ROLE_DURATION, YELLOW_ROLE_DURATION
+    GREEN, RED, YELLOW,
 )
 
 BOSSMANROLE_ID = ADMIN_ROLE

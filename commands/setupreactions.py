@@ -1,22 +1,13 @@
-import datetime
 import time
 import disnake
-from disnake.ext import commands
-import asyncio
 
 from config import (
-    GREEN_ROLE_ID,
-    RED_ROLE_ID,
-    YELLOW_ROLE_ID,
-    GREEN_ROLE_DURATION,
-    RED_ROLE_DURATION,
-    YELLOW_ROLE_DURATION,
     ALLOWED_USER_ID,
     COOLDOWN,
     GUILD_IDS
 )
 from database import fisher_yates_shuffle
-from utils import bot, load_setup_data, remove_role_later, store_setup_data, load_role_timestamps, store_role_timestamps, setup_data
+from utils import bot, load_setup_data, store_setup_data, load_role_timestamps, setup_data
 
 video_manager = None
 
@@ -93,37 +84,17 @@ async def on_raw_reaction_add(payload):
 
     emoji = str(payload.emoji)
 
-    guild = bot.get_guild(payload.guild_id)
-    member = await guild.fetch_member(payload.user_id)
-
-    role_id = None
-    role_duration = None
-    color = None
-    if emoji == "✅":
-        role_id = GREEN_ROLE_ID
-        role_duration = GREEN_ROLE_DURATION
-        color = "green"
-    elif emoji == "❌":
-        role_id = RED_ROLE_ID
-        role_duration = RED_ROLE_DURATION
-        color = "red"
-    elif emoji == "🤔":
-        role_id = YELLOW_ROLE_ID
-        role_duration = YELLOW_ROLE_DURATION
-        color = "yellow"
-    else:
+    emoji_to_color_and_message = {
+        "✅": ("green", f"{user.mention} is willing to game tonight\n"),
+        "❌": ("red", f"{user.mention} is not gaming tonight\n"),
+        "🤔": ("yellow", f"{user.mention} is thinking about gaming\n")
+    }
+    
+    if emoji not in emoji_to_color_and_message:
         return
 
-    role = guild.get_role(role_id)
-    await member.add_roles(role)
-
-    role_timestamps = load_role_timestamps(guild.id)
-    removal_timestamp = time.time() + role_duration
-    role_timestamps[str(payload.user_id)] = removal_timestamp
-    store_role_timestamps(guild.id, payload.user_id, removal_timestamp, role_id)
-
-    bot.loop.create_task(remove_role_later(member, role_id, role_duration))
-
+    color, user_message = emoji_to_color_and_message[emoji]
+    
     played_videos = video_manager.played_videos
     current_time = time.time()
 
@@ -150,4 +121,4 @@ async def on_raw_reaction_add(payload):
     played_videos[chosen_video] = current_time
     video_manager.save_data()
 
-    await target_channel.send(chosen_video)
+    await target_channel.send(f"{user_message}{chosen_video}")
