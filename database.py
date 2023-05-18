@@ -2,7 +2,6 @@ import aiosqlite
 import random
 import time
 import logging
-from config import COOLDOWN
 
 DATABASE_NAME = "videos.db"
 
