@@ -3,7 +3,6 @@ import disnake
 
 from config import (
     ALLOWED_USER_ID,
-    COOLDOWN,
     GUILD_IDS
 )
 from database import fisher_yates_shuffle
@@ -110,7 +109,7 @@ async def on_raw_reaction_add(payload):
         candidate_video = available_videos.pop()
 
         played_time = played_videos.get(candidate_video, 0)
-        if current_time - played_time > COOLDOWN:
+        if current_time - played_time > bot.cooldown:
             chosen_video = candidate_video
             break
 
