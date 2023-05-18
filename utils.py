@@ -10,11 +10,24 @@ import disnake
 from disnake.ext import commands
 from disnake import ApplicationCommandInteraction
 
-from config import BOSSMANROLE_ID, ALLOWED_USER_ID, INTENTS
+from config import BOSSMANROLE_ID, ALLOWED_USER_ID, INTENTS, get_cooldown, update_cooldown
 from database import fisher_yates_shuffle
 
+class CustomBot(commands.Bot):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._cooldown = None
+        self.update_cooldown()
 
-bot = commands.Bot(command_prefix=disnake.ext.commands.when_mentioned, intents=INTENTS)
+    @property
+    def cooldown(self):
+        self.update_cooldown()
+        return self._cooldown
+
+    def update_cooldown(self):
+        self._cooldown = get_cooldown()
+
+bot = CustomBot(command_prefix=disnake.ext.commands.when_mentioned, intents=INTENTS)
 
 setup_data = {"message_id": 0, "channel_id": 0, "target_channel_id": 0}
 

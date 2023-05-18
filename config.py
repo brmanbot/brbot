@@ -40,5 +40,3 @@ def update_cooldown(value):
             json.dump(config_data, file)
     except Exception as e:
         print(f"An error occurred while updating cooldown: {e}")
-
-COOLDOWN = get_cooldown()

@@ -1,6 +1,6 @@
 import disnake
 from utils import bot, fisher_yates_shuffle
-from config import COOLDOWN, GUILD_IDS
+from config import GUILD_IDS
 import time
 
 video_manager = None
@@ -42,7 +42,7 @@ async def randomvid(ctx, colour: str = None):
         candidate_video = available_videos.pop()
 
         played_time = played_videos.get(candidate_video, 0)
-        if current_time - played_time > COOLDOWN:
+        if current_time - played_time > bot.cooldown:
             chosen_video = candidate_video
             break
 
