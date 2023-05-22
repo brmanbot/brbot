@@ -86,7 +86,7 @@ async def on_raw_reaction_add(payload):
     if guild is None:
         return
 
-    all_guild_emojis = guild.emojis
+    all_guild_emojis = list(guild.emojis)
     fisher_yates_shuffle(all_guild_emojis)
 
     emoji = str(payload.emoji)
