@@ -85,7 +85,10 @@ async def on_raw_reaction_add(payload):
     guild = bot.get_guild(payload.guild_id)
     if guild is None:
         return
-    
+
+    all_guild_emojis = guild.emojis
+    fisher_yates_shuffle(all_guild_emojis)
+
     emoji = str(payload.emoji)
 
     emoji_to_color_and_message = {
@@ -108,7 +111,8 @@ async def on_raw_reaction_add(payload):
                     yellow_role_users.append(member)
 
     if yellow_role_users:
-        user_message += f"Does that change your mind? {', '.join([user.mention for user in yellow_role_users])}\n"
+        random_emoji = all_guild_emojis[0] if all_guild_emojis else '😅' 
+        user_message += f"Does that change your mind {yellow_role.mention} {random_emoji}❓\n"
     
     played_videos = video_manager.played_videos
     current_time = time.time()
@@ -136,4 +140,4 @@ async def on_raw_reaction_add(payload):
     played_videos[chosen_video] = current_time
     video_manager.save_data()
 
-    await target_channel.send(f"{user_message}{chosen_video}")
+    await target_channel.send(f"{user_message}\n{chosen_video}")
