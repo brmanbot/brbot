@@ -3,7 +3,9 @@ import disnake
 
 from config import (
     ALLOWED_USER_ID,
+    GREEN_ROLE_ID,
     GUILD_IDS,
+    RED_ROLE_ID,
     YELLOW_ROLE_ID
 )
 from database import fisher_yates_shuffle
@@ -90,11 +92,16 @@ async def on_raw_reaction_add(payload):
     fisher_yates_shuffle(all_guild_emojis)
 
     emoji = str(payload.emoji)
+    random_emoji = all_guild_emojis[0] if all_guild_emojis else '😅' 
+
+    yellow_role = disnake.utils.get(guild.roles, id=YELLOW_ROLE_ID)
+    green_role = disnake.utils.get(guild.roles, id=GREEN_ROLE_ID)
+    red_role = disnake.utils.get(guild.roles, id=RED_ROLE_ID)
 
     emoji_to_color_and_message = {
-        "✅": ("green", f"{user.mention} is willing to game tonight\n"),
-        "❌": ("red", f"{user.mention} is not gaming tonight\n"),
-        "🤔": ("yellow", f"{user.mention} is thinking about gaming\n")
+        "✅": ("green", f"{user.mention} is {green_role.mention} {random_emoji}\n"),
+        "❌": ("red", f"{user.mention} is {red_role.mention} {random_emoji}\n"),
+        "🤔": ("yellow", f"{user.mention} is {yellow_role.mention} {random_emoji}\n")
     }
     
     if emoji not in emoji_to_color_and_message:
@@ -104,14 +111,12 @@ async def on_raw_reaction_add(payload):
 
     yellow_role_users = []
     if color == "green":
-        yellow_role = disnake.utils.get(guild.roles, id=YELLOW_ROLE_ID)
         if yellow_role:
             for member in guild.members:
                 if yellow_role in member.roles:
                     yellow_role_users.append(member)
 
     if yellow_role_users:
-        random_emoji = all_guild_emojis[0] if all_guild_emojis else '😅' 
         user_message += f"Does that change your mind {yellow_role.mention} {random_emoji}❓\n"
     
     played_videos = video_manager.played_videos
