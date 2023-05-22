@@ -3,7 +3,8 @@ import disnake
 
 from config import (
     ALLOWED_USER_ID,
-    GUILD_IDS
+    GUILD_IDS,
+    YELLOW_ROLE_ID
 )
 from database import fisher_yates_shuffle
 from utils import bot, load_setup_data, store_setup_data, load_role_timestamps, setup_data
@@ -81,6 +82,10 @@ async def on_raw_reaction_add(payload):
     if target_channel is None:
         return
 
+    guild = bot.get_guild(payload.guild_id)
+    if guild is None:
+        return
+    
     emoji = str(payload.emoji)
 
     emoji_to_color_and_message = {
@@ -93,6 +98,17 @@ async def on_raw_reaction_add(payload):
         return
 
     color, user_message = emoji_to_color_and_message[emoji]
+
+    yellow_role_users = []
+    if color == "green":
+        yellow_role = disnake.utils.get(guild.roles, id=YELLOW_ROLE_ID)
+        if yellow_role:
+            for member in guild.members:
+                if yellow_role in member.roles:
+                    yellow_role_users.append(member)
+
+    if yellow_role_users:
+        user_message += f"Does that change your mind? {', '.join([user.mention for user in yellow_role_users])}\n"
     
     played_videos = video_manager.played_videos
     current_time = time.time()

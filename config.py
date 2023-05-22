@@ -12,8 +12,8 @@ INTENTS = disnake.Intents.default()
 INTENTS.messages = True
 INTENTS.reactions = True
 INTENTS.typing = False
-INTENTS.presences = False
-INTENTS.message_content = True
+INTENTS.presences = True
+INTENTS.members = True
 
 GREEN_ROLE_ID = GREEN
 RED_ROLE_ID = RED
