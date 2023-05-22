@@ -92,16 +92,19 @@ async def on_raw_reaction_add(payload):
     fisher_yates_shuffle(all_guild_emojis)
 
     emoji = str(payload.emoji)
-    random_emoji = all_guild_emojis[0] if all_guild_emojis else '😅' 
-
+    random_emoji = all_guild_emojis[0]
+    random_emoji2 = all_guild_emojis[1]
+    random_emoji3 = all_guild_emojis[2]
+    random_emoji4 = all_guild_emojis[3]
+    
     yellow_role = disnake.utils.get(guild.roles, id=YELLOW_ROLE_ID)
     green_role = disnake.utils.get(guild.roles, id=GREEN_ROLE_ID)
     red_role = disnake.utils.get(guild.roles, id=RED_ROLE_ID)
 
     emoji_to_color_and_message = {
-        "✅": ("green", f"{user.mention} is {green_role.mention} {random_emoji}\n"),
-        "❌": ("red", f"{user.mention} is {red_role.mention} {random_emoji}\n"),
-        "🤔": ("yellow", f"{user.mention} is {yellow_role.mention} {random_emoji}\n")
+        "✅": ("green", f"{user.mention} is {green_role.mention} {random_emoji2}\n"),
+        "❌": ("red", f"{user.mention} is {red_role.mention} {random_emoji3}\n"),
+        "🤔": ("yellow", f"{user.mention} is {yellow_role.mention} {random_emoji4}\n")
     }
     
     if emoji not in emoji_to_color_and_message:
