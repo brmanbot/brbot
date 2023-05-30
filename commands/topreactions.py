@@ -95,6 +95,6 @@ async def topreactions(ctx, period='all', channel=None):
         reactions = ', '.join([f"{reaction.emoji} ({reaction.count})" for reaction in message.reactions])
         username = message.author.name
         message_url = f"https://discord.com/channels/{ctx.guild.id}/{channel.id}/{message.id}"
-        embed.add_field(name=f"{i}. {username}", value=f"[{reactions}]({message_url})", inline=False)
+        embed.add_field(name=f"{i}. {username}", value=f"{message_url} {reactions}", inline=False)
 
     await ctx.send(embed=embed)
