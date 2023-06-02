@@ -71,22 +71,34 @@ async def topreactions(ctx, period='all', channel=None):
     if days is not None:
         start_date = now - timedelta(days=days)
     else:
-        start_date = None
+        start_date = datetime.min.replace(tzinfo=pytz.utc)
 
     messages = []
-    async for message in channel.history(limit=None):
-        if message.reactions:
-            messages.append(message)
+    try:
+        async for message in channel.history(limit=None):
+            if message.created_at.replace(tzinfo=pytz.UTC) < start_date:
+                break
+            if message.reactions:
+                messages.append(message)
+    except disnake.Forbidden:
+        embed = disnake.Embed(
+            title="Error",
+            description="Failed to fetch messages from the channel due to lack of permissions.",
+            color=0xF48BE3
+        )
+        await ctx.send(embed=embed)
+        return
+    except disnake.HTTPException as e:
+        embed = disnake.Embed(
+            title="Error",
+            description=f"Failed to fetch messages from the channel due to an HTTPException: {e}",
+            color=0xF48BE3
+        )
+        await ctx.send(embed=embed)
+        return
+    
+    sorted_messages = sorted(messages, key=lambda msg: sum(reaction.count for reaction in msg.reactions), reverse=True)[:25]
 
-    if start_date is not None:
-        sorted_messages = sorted([message for message in messages if message.created_at.replace(tzinfo=pytz.UTC) >= start_date], 
-                                 key=lambda msg: sum(reaction.count for reaction in msg.reactions), 
-                                 reverse=True)[:25]
-    else:
-        sorted_messages = sorted([message for message in messages],
-                                 key=lambda msg: sum(reaction.count for reaction in msg.reactions), 
-                                 reverse=True)[:25]
-                                 
     period_name = period_names.get(period)
 
     embed = disnake.Embed(title=f"Top messages with most reactions in {channel.name} for {period_name}", description="", color=0xF48BE3)

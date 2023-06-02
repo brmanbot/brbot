@@ -11,42 +11,43 @@ from config import GUILD_IDS
     guild_ids=GUILD_IDS
 )
 async def vids(ctx):
-    embed = await create_embed("green", 1)
-    view = ColourSelector(ctx)
+    colour = "green"  # Default color
+    embed = await create_embed(colour, 1)
+    view = ColourSelector(ctx, colour)
     await ctx.response.send_message(embed=embed, view=view)
 
-async def create_embed(colour, page, items_per_page=30):
-    db = await aiosqlite.connect("videos.db")
-    try:
+async def fetch_videos(colour):
+    async with aiosqlite.connect("videos.db") as db:
         query = "SELECT name, url FROM videos WHERE color = ?"
         values = (colour,)
         async with db.execute(query, values) as cursor:
             videos = await cursor.fetchall()
+    return videos
 
-        total_pages = math.ceil(len(videos) / items_per_page)
-        page = max(1, min(page, total_pages))
+async def create_embed(colour, page, items_per_page=30):
+    videos = await fetch_videos(colour)
+    total_pages = math.ceil(len(videos) / items_per_page)
+    page = max(1, min(page, total_pages))
 
-        video_links = '\n'.join(
-            [f"[{video[0]}]({video[1]})" for video in videos[(page - 1) * items_per_page: page * items_per_page]])
+    video_links = '\n'.join(
+        [f"[{video[0]}]({video[1]})" for video in videos[(page - 1) * items_per_page: page * items_per_page]])
 
-        embed = disnake.Embed(
-            title=f"{colour.capitalize()} videos ({len(videos)})",
-            description=video_links,
-            color=disnake.Color.green() if colour == "green" else (
-                disnake.Color.red() if colour == "red" else disnake.Color.gold())
-        )
-        embed.set_footer(text=f"Page {page} of {total_pages}")
+    embed = disnake.Embed(
+        title=f"{colour.capitalize()} videos ({len(videos)})",
+        description=video_links,
+        color=disnake.Color.green() if colour == "green" else (
+            disnake.Color.red() if colour == "red" else disnake.Color.gold())
+    )
+    embed.set_footer(text=f"Page {page} of {total_pages}")
 
-        return embed
-    finally:
-        await db.close()
+    return embed
 
 class ColourSelector(disnake.ui.View):
-    def __init__(self, ctx):
+    def __init__(self, ctx, colour):
         super().__init__()
         self.ctx = ctx
         self.page = 1
-        self.colour = "green"
+        self.colour = colour
 
     @disnake.ui.button(label="Green", style=ButtonStyle.green, custom_id="green_vids", row=0)
     async def green_button(self, button: disnake.ui.Button, interaction: disnake.Interaction):
@@ -108,4 +109,3 @@ class ColourSelector(disnake.ui.View):
                 self.children[idx] = self.last_page_button
 
         await interaction.response.edit_message(embed=embed, view=self)
-

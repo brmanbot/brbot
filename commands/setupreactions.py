@@ -74,6 +74,8 @@ async def send_message_and_add_reaction(channel, message):
 
 reaction_message_ids = {}
 
+ALLOWED_EMOJIS = {"✅", "❌", "🤔"}
+
 @bot.event
 async def on_raw_reaction_add(payload):
     user = await bot.fetch_user(payload.user_id)
@@ -106,12 +108,15 @@ async def on_raw_reaction_add(payload):
     green_role = disnake.utils.get(guild.roles, id=GREEN_ROLE_ID)
     red_role = disnake.utils.get(guild.roles, id=RED_ROLE_ID)
 
+    if emoji not in ALLOWED_EMOJIS:
+        return
+
     emoji_to_color_and_message = {
         "✅": ("green", f"{user.mention} is {green_role.mention} {random_emojis[1]}\n"),
         "❌": ("red", f"{user.mention} is {red_role.mention} {random_emojis[2]}\n"),
         "🤔": ("yellow", f"{user.mention} is {yellow_role.mention} {random_emojis[3]}\n")
     }
-    
+
     if emoji not in emoji_to_color_and_message:
         return
 
@@ -127,21 +132,13 @@ async def on_raw_reaction_add(payload):
     played_videos = video_manager.played_videos
     current_time = time.time()
 
-    available_videos = await video_manager.get_available_videos([color])
+    available_videos = await video_manager.get_available_videos_with_cooldown([color], current_time, bot.cooldown)
 
     if not available_videos:
-        await target_channel.send(f"No {color} videos found in the database.")
+        await target_channel.send(f"No {color} videos found in the database that meet the cooldown requirement.")
         return
 
-    chosen_video = None
-    while available_videos:
-        fisher_yates_shuffle(available_videos)
-        candidate_video = available_videos.pop()
-
-        played_time = played_videos.get(candidate_video, 0)
-        if current_time - played_time > bot.cooldown:
-            chosen_video = candidate_video
-            break
+    chosen_video = available_videos[0]
 
     if not chosen_video:
         await target_channel.send("No videos found that meet the cooldown requirement.")

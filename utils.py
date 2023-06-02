@@ -93,25 +93,25 @@ class VideoManager:
 
         return removed_url, removed_name
 
-    async def get_available_videos(self, colors):
-        current_time = time.time()
-        available_videos = []
+    # async def get_available_videos(self, colors):
+    #     current_time = time.time()
+    #     available_videos = []
 
-        async with aiosqlite.connect("videos.db") as db:
-            for c in colors:
-                if not self.video_lists.get(c) or (current_time - self.last_reset.get(c, 0) > 129600):
-                    query = "SELECT url FROM videos WHERE color = ?"
-                    values = (c,)
-                    async with db.execute(query, values) as cursor:
-                        results = await cursor.fetchall()
+    #     async with aiosqlite.connect("videos.db") as db:
+    #         for c in colors:
+    #             if not self.video_lists.get(c) or (current_time - self.last_reset.get(c, 0) > 129600):
+    #                 query = "SELECT url FROM videos WHERE color = ?"
+    #                 values = (c,)
+    #                 async with db.execute(query, values) as cursor:
+    #                     results = await cursor.fetchall()
 
-                    self.video_lists[c] = [url for url, in results]
-                    self.last_reset[c] = current_time
-                    fisher_yates_shuffle(self.video_lists[c])
+    #                 self.video_lists[c] = [url for url, in results]
+    #                 self.last_reset[c] = current_time
+    #                 fisher_yates_shuffle(self.video_lists[c])
 
-                available_videos.extend(self.video_lists[c])
+    #             available_videos.extend(self.video_lists[c])
 
-        return available_videos
+    #     return available_videos
     
     async def get_video_url(self, name: str):
         async with aiosqlite.connect(self.db_path) as db:
@@ -158,6 +158,30 @@ class VideoManager:
 
             self.save_data()
 
+    async def get_available_videos_with_cooldown(self, colors, current_time, cooldown):
+        tasks = [self._get_videos_for_color(c, current_time, cooldown) for c in colors]  # Create tasks for all colors
+        results = await asyncio.gather(*tasks)  # Run tasks concurrently
+
+        available_videos = []
+        for videos in results:
+            available_videos.extend(videos)
+
+        return available_videos
+
+    async def _get_videos_for_color(self, color, current_time, cooldown):
+        if not self.video_lists.get(color) or (current_time - self.last_reset.get(color, 0) > 129600):
+            query = "SELECT url FROM videos WHERE color = ?"
+            values = (color,)
+            async with aiosqlite.connect("videos.db") as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute(query, values)
+                results = await cursor.fetchall()
+
+            self.video_lists[color] = [url for url, in results]
+            self.last_reset[color] = current_time
+            fisher_yates_shuffle(self.video_lists[color])
+
+        return [video for video in self.video_lists[color] if current_time - self.played_videos.get(video, 0) > cooldown]
 
 # Utility Functions
 async def shorten_url(url: str) -> str:
