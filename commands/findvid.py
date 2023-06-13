@@ -47,7 +47,7 @@ class DeleteVideoView(disnake.ui.View):
 async def findvid(ctx, url: str):
     global video_manager
     async with aiosqlite.connect("videos.db") as db:
-        query = "SELECT name, color FROM videos WHERE url = ? OR original_url = ?"
+        query = "SELECT name, color, added_by FROM videos WHERE url = ? OR original_url = ?"
         values = (url, url)
         async with db.execute(query, values) as cursor:
             result = await cursor.fetchone()
@@ -55,6 +55,9 @@ async def findvid(ctx, url: str):
         if result is None:
             await ctx.response.send_message("No video found with the given URL.", ephemeral=True)
         else:
-            name, colour = result
+            name, colour, added_by = result
+            
+            username = added_by.split('#')[0]
+            
             view = DeleteVideoView(ctx, url, name, colour)
-            await ctx.response.send_message(f"`{name}` found in the `{colour}` database with the matching URL.", view=view)
+            await ctx.response.send_message(f"`{name}` found in the `{colour}` database with the matching URL, added by `{username}`.", view=view)

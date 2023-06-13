@@ -34,6 +34,7 @@ from config import GUILD_IDS
 async def vid(inter, colour: str, name: str, url: str):
     from main import video_manager
     valid_colours = ["green", "red", "yellow"]
+    
     if colour.lower() not in valid_colours:
         await inter.send("Invalid colour. Please use `Green`, `Red`, or `Yellow`.", ephemeral=True)
         return
@@ -46,6 +47,8 @@ async def vid(inter, colour: str, name: str, url: str):
     if short_url is None:
         await inter.response.send_message("Error creating short URL", ephemeral=True)
         return
+
+    added_by = f"{inter.user.name}#{inter.user.discriminator}"
 
     query = "SELECT * FROM videos WHERE name = ? OR url = ? OR original_url = ?"
     values = (name, short_url, url)
@@ -63,7 +66,8 @@ async def vid(inter, colour: str, name: str, url: str):
                     await inter.response.send_message(f"An entry with the same URL `{url}` already exists in the database. Please use a different URL or video.", ephemeral=True)
                     return
 
-            await add_video_to_database(name, short_url, colour.lower(), url)
+            await add_video_to_database(name, short_url, colour.lower(), url, added_by)
+            
             video_manager.video_lists[colour.lower()].append(short_url)
             video_manager.save_data()
             await inter.response.send_message(f"Saved `{short_url}` as `{name}` in `{colour}` database")

@@ -25,6 +25,7 @@ async def initialize_database():
                     url TEXT,
                     color TEXT,
                     original_url TEXT
+                    added_by TEXT
                 )
             """)
             await db.commit()
@@ -32,10 +33,10 @@ async def initialize_database():
         logging.error(f"Error initializing the database: {e}")
 
 
-async def add_video_to_database(name, url, color, original_url):
+async def add_video_to_database(name, url, color, original_url, added_by):
     async with aiosqlite.connect(DATABASE_NAME) as db:
-        query = "INSERT INTO videos (name, url, color, original_url) VALUES (?, ?, ?, ?)"
-        values = (name, url, color, original_url)
+        query = "INSERT INTO videos (name, url, color, original_url, added_by) VALUES (?, ?, ?, ?, ?)"
+        values = (name, url, color, original_url, added_by)
         try:
             await db.execute(query, values)
             await db.commit()
