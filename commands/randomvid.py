@@ -13,18 +13,22 @@ video_manager = None
         disnake.Option("colour", "The colour database to search for videos.", type=disnake.OptionType.string, required=False, choices=[
             disnake.OptionChoice("Green", "green"),
             disnake.OptionChoice("Red", "red"),
-            disnake.OptionChoice("Yellow", "yellow")
+            disnake.OptionChoice("Yellow", "yellow"),
+            disnake.OptionChoice("All", "all")
         ])
     ]
 )
-async def randomvid(ctx, colour: str = None):
+async def randomvid(ctx, colour: str = "yellow"):
     await ctx.response.defer()
 
     global video_manager
     played_videos = video_manager.played_videos
     current_time = time.time()
 
-    colours = [colour] if colour else ["green", "red", "yellow"]
+    if colour == "all":
+        colours = ["green", "red", "yellow"]
+    else:
+        colours = [colour]
 
     available_videos = await video_manager.get_available_videos_with_cooldown(colours, current_time, bot.cooldown)
 
