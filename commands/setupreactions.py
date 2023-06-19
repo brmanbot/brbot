@@ -1,3 +1,4 @@
+import asyncio
 import time
 import disnake
 
@@ -148,6 +149,9 @@ async def on_raw_reaction_add(payload):
     video_manager.save_data()
 
     if yellow_role_users:
+        await asyncio.sleep(0.5)
+        yellow_role_users = [member for member in guild.members if yellow_role in member.roles]
+        
         user_message += f"Does that change your mind {yellow_role.mention} {random_emojis[0]}❓\n\n{chosen_video}"
         message_in_target_channel_id = await send_message_and_add_reaction(target_channel, user_message)
         reaction_message_ids.setdefault(payload.guild_id, []).append(message_in_target_channel_id)
