@@ -11,10 +11,10 @@ video_manager = None
     guild_ids=GUILD_IDS,
     options=[
         disnake.Option("colour", "The colour database to search for videos.", type=disnake.OptionType.string, required=False, choices=[
+            disnake.OptionChoice("All", "all"),
             disnake.OptionChoice("Green", "green"),
             disnake.OptionChoice("Red", "red"),
-            disnake.OptionChoice("Yellow", "yellow"),
-            disnake.OptionChoice("All", "all")
+            disnake.OptionChoice("Yellow", "yellow")            
         ])
     ]
 )
