@@ -148,8 +148,8 @@ async def on_raw_reaction_add(payload):
     played_videos[chosen_video] = current_time
     video_manager.save_data()
 
+    await asyncio.sleep(0.5)
     if yellow_role_users:
-        await asyncio.sleep(0.5)
         yellow_role_users = [member for member in guild.members if yellow_role in member.roles]
         
         user_message += f"Does that change your mind {yellow_role.mention} {random_emojis[0]}❓\n\n{chosen_video}"
