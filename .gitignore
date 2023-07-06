@@ -4,3 +4,4 @@ private_config.py
 videos.db
 video_data.json
 config_data.json
+change_short_url.py

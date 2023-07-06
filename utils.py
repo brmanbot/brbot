@@ -187,7 +187,7 @@ class VideoManager:
 async def shorten_url(url: str) -> str:
     s = pyshorteners.Shortener()
     try:
-        return s.tinyurl.short(url)
+        return s.isgd.short(url)
     except pyshorteners.exceptions.ShorteningErrorException:
         return None
 
