@@ -18,7 +18,7 @@ async def delvid(inter, identifier: str):
         await inter.response.send_message("You do not have the required role to run this command.", ephemeral=True)
         return
 
-    identifier_type = "url" if identifier.startswith("https://tinyurl.com/") else "name"
+    identifier_type = "url" if identifier.startswith("https://") else "name"
     removed_url, removed_name = await video_manager.remove_video(identifier, identifier_type)
 
     if removed_url is not None and removed_name is not None:
