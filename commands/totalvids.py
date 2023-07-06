@@ -20,7 +20,7 @@ async def create_total_videos_embed():
         colors = ["green", "red", "yellow"]
         color_counts = {}
         for color in colors:
-            query = "SELECT COUNT(*) FROM videos WHERE color = ?"
+            query = "SELECT COUNT(*) FROM videos WHERE LOWER(color) = ?"
             values = (color,)
             async with db.execute(query, values) as cursor:
                 color_counts[color] = (await cursor.fetchone())[0]
