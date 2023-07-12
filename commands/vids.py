@@ -44,10 +44,16 @@ async def create_embed(colour, page, items_per_page=30):
 
 class ColourSelector(disnake.ui.View):
     def __init__(self, ctx, colour):
-        super().__init__()
+        super().__init__(timeout=180)
         self.ctx = ctx
         self.page = 1
         self.colour = colour
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        message = await self.ctx.original_message()
+        await message.edit(view=self)
 
     @disnake.ui.button(label="Green", style=ButtonStyle.green, custom_id="green_vids", row=0)
     async def green_button(self, button: disnake.ui.Button, interaction: disnake.Interaction):

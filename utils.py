@@ -93,6 +93,18 @@ class VideoManager:
 
         return removed_url, removed_name
 
+    async def search_videos(self, phrase, identifier_type):
+        matched_videos = []
+        async with aiosqlite.connect(self.db_path) as db:
+            for color in COLORS:
+                query = f"SELECT * FROM videos WHERE {identifier_type} LIKE ? AND color = ?"
+                values = (f"%{phrase}%", color)
+                async with db.execute(query, values) as cursor:
+                    result = await cursor.fetchall()
+                    if result:
+                        matched_videos.extend([video[1] for video in result])
+        return matched_videos
+
     # async def get_available_videos(self, colors):
     #     current_time = time.time()
     #     available_videos = []

@@ -7,11 +7,17 @@ video_manager = None
 
 class DeleteVideoView(disnake.ui.View):
     def __init__(self, ctx, url, name, colour):
-        super().__init__()
+        super().__init__(timeout=180)
         self.ctx = ctx
         self.url = url
         self.name = name
         self.colour = colour
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        message = await self.ctx.original_message()
+        await message.edit(view=self)
 
     @disnake.ui.button(label="Delete", style=disnake.ButtonStyle.red, custom_id="delete_video", row=0)
     async def delete_button(self, button: disnake.ui.Button, interaction: disnake.Interaction):
