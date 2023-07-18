@@ -5,7 +5,6 @@ from disnake.ext import commands
 from config import ALLOWED_USER_ID, BOSSMANROLE_ID, BOT_TOKEN, INTENTS, GUILD_IDS
 from utils import CustomBot, VideoManager, autocomp_colours, load_setup_data, setup_data
 from database import initialize_database
-# from database import add_is_hall_of_fame_column
 
 import pkgutil
 
@@ -30,16 +29,8 @@ async def main():
     print("Bot created...")
 
     await initialize_database()
-    # await add_is_hall_of_fame_column()
     await setup_video_manager(bot)
     
-    # # Now import command modules when bot and video_manager are set up
-    # global command_modules
-    # command_modules = [importlib.import_module(f'commands.{name}') for _, name, _ in pkgutil.iter_modules(['commands'])]
-    # for module in command_modules:
-    #     module.video_manager = bot.video_manager
-
-    # Load command modules
     for _, name, _ in pkgutil.iter_modules(['commands']):
         bot.load_extension(f'commands.{name}')
 

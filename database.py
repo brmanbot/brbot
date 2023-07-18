@@ -63,13 +63,3 @@ async def get_hall_of_fame_videos():
             return await cursor.fetchall()
         except aiosqlite.IntegrityError as e:
             logging.error(f"Error retrieving hall of fame videos: {e}")
-
-# async def add_is_hall_of_fame_column():
-#     try:
-#         async with aiosqlite.connect(DATABASE_NAME) as db:
-#             await db.execute("""
-#                 ALTER TABLE videos ADD COLUMN is_hall_of_fame BOOLEAN DEFAULT 0
-#             """)
-#             await db.commit()
-#     except aiosqlite.OperationalError as e:
-#         logging.error(f"Error adding is_hall_of_fame column: {e}")
