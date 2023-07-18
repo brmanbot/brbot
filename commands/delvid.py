@@ -41,7 +41,7 @@ class DeleteVideoView(disnake.ui.View):
         if len(self.matched_videos) > 1:
             deleted_videos = []
             for video in self.matched_videos:
-                removed_url, removed_name = await bot.video_manager.remove_video(video['url'], "url")
+                removed_url, removed_name = await self.ctx.bot.video_manager.remove_video(video['url'], "url") 
                 if removed_url and removed_name:
                     deleted_videos.append(removed_name)
 
@@ -51,7 +51,7 @@ class DeleteVideoView(disnake.ui.View):
             else:
                 await interaction.response.edit_message(content="Error deleting the videos. Please try again.", view=None)
         else:
-            removed_url, removed_name = await bot.video_manager.remove_video(self.url, "url")
+            removed_url, removed_name = await self.ctx.bot.video_manager.remove_video(self.url, "url")
             if removed_url and removed_name:
                 await interaction.response.edit_message(content=f"Deleted `{removed_name}` from the database.", view=None)
             else:
@@ -79,7 +79,7 @@ def setup(bot):
 
         if exact_match:
             name, url = exact_match
-            removed_url, removed_name = await bot.video_manager.remove_video(url, "url")
+            removed_url, removed_name = await ctx.bot.video_manager.remove_video(url, "url")  # updated here
             if removed_url and removed_name:
                 await ctx.response.send_message(f"Deleted `{removed_name}` from the database.")
             else:
