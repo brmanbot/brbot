@@ -56,7 +56,7 @@ async def add_video_to_hall_of_fame(id):
 
 async def get_hall_of_fame_videos():
     async with aiosqlite.connect(DATABASE_NAME) as db:
-        query = "SELECT * FROM videos WHERE is_hall_of_fame = ?"
+        query = "SELECT id, url FROM videos WHERE is_hall_of_fame = ?"
         values = (True,)
         try:
             cursor = await db.execute(query, values)
