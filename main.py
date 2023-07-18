@@ -2,22 +2,19 @@ import asyncio
 import disnake
 from disnake.ext import commands
 
-from config import ALLOWED_USER_ID, BOSSMANROLE_ID, BOT_TOKEN, INTENTS
-from utils import VideoManager, autocomp_colours, bot, load_setup_data, setup_data
+from config import ALLOWED_USER_ID, BOSSMANROLE_ID, BOT_TOKEN, INTENTS, GUILD_IDS
+from utils import CustomBot, VideoManager, autocomp_colours, load_setup_data, setup_data
 from database import initialize_database
+# from database import add_is_hall_of_fame_column
 
-import importlib
 import pkgutil
 
-command_modules = [importlib.import_module(f'commands.{name}') for _, name, _ in pkgutil.iter_modules(['commands'])]
+print("Starting the bot...")
 
-video_manager = VideoManager()
-video_manager.load_data()
+async def setup_video_manager(bot):
+    bot.video_manager = await VideoManager.create()
 
-for module in command_modules:
-    module.video_manager = video_manager
-
-async def setup_reaction_handler_on_restart():
+async def setup_reaction_handler_on_restart(bot):
     for guild in bot.guilds:
         message_id, channel_id, target_channel_id = load_setup_data(guild.id)
         if message_id != 0 and target_channel_id != 0:
@@ -28,25 +25,43 @@ async def setup_reaction_handler_on_restart():
             except disnake.NotFound:
                 continue
 
-@bot.event
-async def on_ready():
-    print(f"Bot is ready as {bot.user}!")
-    await setup_reaction_handler_on_restart()
-
 async def main():
-    await initialize_database()
+    bot = CustomBot(intents=INTENTS, test_guilds=GUILD_IDS)
+    print("Bot created...")
 
+    await initialize_database()
+    # await add_is_hall_of_fame_column()
+    await setup_video_manager(bot)
+    
+    # # Now import command modules when bot and video_manager are set up
+    # global command_modules
+    # command_modules = [importlib.import_module(f'commands.{name}') for _, name, _ in pkgutil.iter_modules(['commands'])]
+    # for module in command_modules:
+    #     module.video_manager = bot.video_manager
+
+    # Load command modules
+    for _, name, _ in pkgutil.iter_modules(['commands']):
+        bot.load_extension(f'commands.{name}')
+
+    @bot.event
+    async def on_ready():
+        print(f"Bot is ready as {bot.user}!")
+        await setup_reaction_handler_on_restart(bot)
+    
     try:
         await bot.start(BOT_TOKEN)
-    except KeyboardInterrupt:
+    finally:
+        print("Bot is shutting down...")
         await bot.close()
 
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     try:
         loop.run_until_complete(main())
     except KeyboardInterrupt:
-        print("Bot is shutting down...")
-        loop.run_until_complete(bot.close())
+        print(f"Bot is shutting down...")
+    finally:
         loop.close()

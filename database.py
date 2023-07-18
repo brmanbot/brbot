@@ -24,8 +24,9 @@ async def initialize_database():
                     name TEXT,
                     url TEXT,
                     color TEXT,
-                    original_url TEXT
-                    added_by TEXT
+                    original_url TEXT,
+                    added_by TEXT,
+                    is_hall_of_fame BOOLEAN DEFAULT 0
                 )
             """)
             await db.commit()
@@ -42,3 +43,33 @@ async def add_video_to_database(name, url, color, original_url, added_by):
             await db.commit()
         except aiosqlite.IntegrityError as e:
             logging.error(f"Error adding video to the database: {e}")
+
+async def add_video_to_hall_of_fame(id):
+    async with aiosqlite.connect(DATABASE_NAME) as db:
+        query = "UPDATE videos SET is_hall_of_fame = ? WHERE id = ?"
+        values = (True, id)
+        try:
+            await db.execute(query, values)
+            await db.commit()
+        except aiosqlite.IntegrityError as e:
+            logging.error(f"Error adding video to the hall of fame: {e}")
+
+async def get_hall_of_fame_videos():
+    async with aiosqlite.connect(DATABASE_NAME) as db:
+        query = "SELECT * FROM videos WHERE is_hall_of_fame = ?"
+        values = (True,)
+        try:
+            cursor = await db.execute(query, values)
+            return await cursor.fetchall()
+        except aiosqlite.IntegrityError as e:
+            logging.error(f"Error retrieving hall of fame videos: {e}")
+
+# async def add_is_hall_of_fame_column():
+#     try:
+#         async with aiosqlite.connect(DATABASE_NAME) as db:
+#             await db.execute("""
+#                 ALTER TABLE videos ADD COLUMN is_hall_of_fame BOOLEAN DEFAULT 0
+#             """)
+#             await db.commit()
+#     except aiosqlite.OperationalError as e:
+#         logging.error(f"Error adding is_hall_of_fame column: {e}")

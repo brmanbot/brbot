@@ -12,7 +12,6 @@ from config import (
 from database import fisher_yates_shuffle
 from utils import bot, load_setup_data, store_setup_data, load_role_timestamps, setup_data
 
-video_manager = None
 
 async def send_message_and_add_reaction(channel, message):
     sent_message = await channel.send(message)
@@ -77,84 +76,85 @@ reaction_message_ids = {}
 
 ALLOWED_EMOJIS = {"✅", "❌", "🤔"}
 
-@bot.event
-async def on_raw_reaction_add(payload):
-    user = await bot.fetch_user(payload.user_id)
-    if user.bot:
-        return
-
-    global video_manager
-
-    setup_data["message_id"], setup_data["channel_id"], setup_data["target_channel_id"] = load_setup_data(payload.guild_id)
-
-    if payload.message_id != setup_data["message_id"] or payload.channel_id != setup_data["channel_id"]:
-        if payload.message_id not in reaction_message_ids.get(payload.guild_id, []):
+def setup(bot):
+    @bot.event
+    async def on_raw_reaction_add(payload):
+        user = await bot.fetch_user(payload.user_id)
+        if user.bot:
             return
 
-    target_channel = bot.get_channel(setup_data["target_channel_id"])
-    if target_channel is None:
-        return
+        assert bot.video_manager is not None, "video_manager is not initialized"
 
-    guild = bot.get_guild(payload.guild_id)
-    if guild is None:
-        return
+        setup_data["message_id"], setup_data["channel_id"], setup_data["target_channel_id"] = load_setup_data(payload.guild_id)
 
-    all_guild_emojis = list(guild.emojis)
-    fisher_yates_shuffle(all_guild_emojis)
+        if payload.message_id != setup_data["message_id"] or payload.channel_id != setup_data["channel_id"]:
+            if payload.message_id not in reaction_message_ids.get(payload.guild_id, []):
+                return
 
-    emoji = str(payload.emoji)
-    random_emojis = all_guild_emojis[:4]
-    
-    yellow_role = disnake.utils.get(guild.roles, id=YELLOW_ROLE_ID)
-    green_role = disnake.utils.get(guild.roles, id=GREEN_ROLE_ID)
-    red_role = disnake.utils.get(guild.roles, id=RED_ROLE_ID)
+        target_channel = bot.get_channel(setup_data["target_channel_id"])
+        if target_channel is None:
+            return
 
-    if emoji not in ALLOWED_EMOJIS:
-        return
+        guild = bot.get_guild(payload.guild_id)
+        if guild is None:
+            return
 
-    emoji_to_color_and_message = {
-        "✅": ("green", f"{user.mention} is {green_role.mention} {random_emojis[1]}\n"),
-        "❌": ("red", f"{user.mention} is {red_role.mention} {random_emojis[2]}\n"),
-        "🤔": ("yellow", f"{user.mention} is {yellow_role.mention} {random_emojis[3]}\n")
-    }
+        all_guild_emojis = list(guild.emojis)
+        fisher_yates_shuffle(all_guild_emojis)
 
-    if emoji not in emoji_to_color_and_message:
-        return
-
-    color, user_message = emoji_to_color_and_message[emoji]
-
-    yellow_role_users = []
-    if color == "green":
-        if yellow_role:
-            for member in guild.members:
-                if yellow_role in member.roles:
-                    yellow_role_users.append(member)
-
-    played_videos = video_manager.played_videos
-    current_time = time.time()
-
-    available_videos = await video_manager.get_available_videos_with_cooldown([color], current_time, bot.cooldown)
-
-    if not available_videos:
-        await target_channel.send(f"No {color} videos found in the database that meet the cooldown requirement.")
-        return
-
-    chosen_video = available_videos[0]
-
-    if not chosen_video:
-        await target_channel.send("No videos found that meet the cooldown requirement.")
-        return
-
-    played_videos[chosen_video] = current_time
-    video_manager.save_data()
-
-    await asyncio.sleep(0.5)
-    if yellow_role_users:
-        yellow_role_users = [member for member in guild.members if yellow_role in member.roles]
+        emoji = str(payload.emoji)
+        random_emojis = all_guild_emojis[:4]
         
-        user_message += f"Does that change your mind {yellow_role.mention} {random_emojis[0]}❓\n\n{chosen_video}"
-        message_in_target_channel_id = await send_message_and_add_reaction(target_channel, user_message)
-        reaction_message_ids.setdefault(payload.guild_id, []).append(message_in_target_channel_id)
-    else:
-        user_message += f"\n{chosen_video}"
-        await target_channel.send(user_message)
+        yellow_role = disnake.utils.get(guild.roles, id=YELLOW_ROLE_ID)
+        green_role = disnake.utils.get(guild.roles, id=GREEN_ROLE_ID)
+        red_role = disnake.utils.get(guild.roles, id=RED_ROLE_ID)
+
+        if emoji not in ALLOWED_EMOJIS:
+            return
+
+        emoji_to_color_and_message = {
+            "✅": ("green", f"{user.mention} is {green_role.mention} {random_emojis[1]}\n"),
+            "❌": ("red", f"{user.mention} is {red_role.mention} {random_emojis[2]}\n"),
+            "🤔": ("yellow", f"{user.mention} is {yellow_role.mention} {random_emojis[3]}\n")
+        }
+
+        if emoji not in emoji_to_color_and_message:
+            return
+
+        color, user_message = emoji_to_color_and_message[emoji]
+
+        yellow_role_users = []
+        if color == "green":
+            if yellow_role:
+                for member in guild.members:
+                    if yellow_role in member.roles:
+                        yellow_role_users.append(member)
+
+        played_videos = bot.video_manager.played_videos
+        current_time = time.time()
+
+        available_videos = await bot.video_manager.get_available_videos_with_cooldown([color], current_time, bot.cooldown)
+
+        if not available_videos:
+            await target_channel.send(f"No {color} videos found in the database that meet the cooldown requirement.")
+            return
+
+        chosen_video = available_videos[0]
+
+        if not chosen_video:
+            await target_channel.send("No videos found that meet the cooldown requirement.")
+            return
+
+        played_videos[chosen_video] = current_time
+        bot.video_manager.save_data()
+
+        await asyncio.sleep(0.5)
+        if yellow_role_users:
+            yellow_role_users = [member for member in guild.members if yellow_role in member.roles]
+            
+            user_message += f"Does that change your mind {yellow_role.mention} {random_emojis[0]}❓\n\n{chosen_video}"
+            message_in_target_channel_id = await send_message_and_add_reaction(target_channel, user_message)
+            reaction_message_ids.setdefault(payload.guild_id, []).append(message_in_target_channel_id)
+        else:
+            user_message += f"\n{chosen_video}"
+            await target_channel.send(user_message)

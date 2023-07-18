@@ -20,12 +20,13 @@ def format_cooldown(cooldown_value):
 
     return ", ".join(formatted_cooldown)
 
-@bot.slash_command(
-    name="showcooldown",
-    description="Display the current cooldown.",
-    guild_ids=GUILD_IDS,
-)
-async def showcooldown(ctx):
-    cooldown_value = get_cooldown()
-    cooldown_formatted = format_cooldown(cooldown_value)
-    await ctx.send(f"Current cooldown is: `{cooldown_formatted}`")
+def setup(bot):
+    @bot.slash_command(
+        name="showcooldown",
+        description="Display the current cooldown.",
+        guild_ids=GUILD_IDS,
+    )
+    async def showcooldown(ctx):
+        cooldown_value = get_cooldown()
+        cooldown_formatted = format_cooldown(cooldown_value)
+        await ctx.send(f"Current cooldown is: `{cooldown_formatted}`")
