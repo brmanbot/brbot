@@ -23,11 +23,10 @@ def setup(bot):
             return
 
         chosen_video = available_videos[0]
+        bot.video_manager.played_videos[chosen_video] = current_time
 
         if chosen_video in bot.video_manager.hall_of_fame:
             chosen_video = "🏆 " + chosen_video
 
         await ctx.edit_original_message(content=f"{chosen_video}")
-
-        bot.video_manager.played_videos[chosen_video] = current_time
-        bot.video_manager.save_data()
+        bot.video_manager.save_data() 

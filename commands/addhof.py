@@ -44,7 +44,7 @@ def setup(bot):
                 await db.execute(update_query, (identifier, identifier))
                 await db.commit()
                 await bot.video_manager.update_hall_of_fame(result[1])
-                await inter.response.send_message(f"Video `{result[1]}` has been added to the Hall of Fame.")
+                await inter.response.send_message(f"Video `{result[1]}` has been added to the Hall of Fame 🏆.")
             except aiosqlite.Error as e:
                 await inter.response.send_message(f"An error occurred while adding the video to the Hall of Fame: {e}", ephemeral=True)
 

@@ -178,6 +178,7 @@ class VideoManager:
         for videos in results:
             available_videos.extend(videos)
 
+        fisher_yates_shuffle(available_videos)
         return available_videos
 
     async def _get_videos_for_color(self, color, current_time, cooldown):
