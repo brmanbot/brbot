@@ -4,12 +4,13 @@ from utils import bot
 from config import GUILD_IDS
 
 class DeleteVideoView(disnake.ui.View):
-    def __init__(self, ctx, url, name, colour):
+    def __init__(self, ctx, url, name, colour, bot):
         super().__init__(timeout=180)
         self.ctx = ctx
         self.url = url
         self.name = name
         self.colour = colour
+        self.bot = bot
 
     async def on_timeout(self):
         for item in self.children:
@@ -26,7 +27,7 @@ class DeleteVideoView(disnake.ui.View):
 
     @disnake.ui.button(label="Confirm Deletion", style=disnake.ButtonStyle.green, custom_id="confirm_deletion", row=1, disabled=True)
     async def confirm_button(self, button: disnake.ui.Button, interaction: disnake.Interaction):
-        removed_url, removed_name = await bot.video_manager.remove_video(self.url, "url")
+        removed_url, removed_name = await self.bot.video_manager.remove_video(self.url, "url")
         if removed_url and removed_name:
             await interaction.response.edit_message(content=f"Deleted `{removed_name}` from the database.", view=None)
         else:
@@ -62,5 +63,5 @@ def setup(bot):
                 
                 username = added_by.split('#')[0]
                 
-                view = DeleteVideoView(ctx, url, name, colour)
+                view = DeleteVideoView(ctx, url, name, colour, bot)
                 await ctx.response.send_message(f"`{name}` found in the `{colour}` database with the matching URL, added by `{username}`.", view=view)
