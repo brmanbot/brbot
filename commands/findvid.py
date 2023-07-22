@@ -1,5 +1,4 @@
 import disnake
-import aiosqlite
 from utils import bot
 from config import GUILD_IDS
 
@@ -50,18 +49,11 @@ def setup(bot):
         ]
     )
     async def findvid(ctx, url: str):
-        async with aiosqlite.connect("videos.db") as db:
-            query = "SELECT name, color, added_by FROM videos WHERE url = ? OR original_url = ?"
-            values = (url, url)
-            async with db.execute(query, values) as cursor:
-                result = await cursor.fetchone()
-
-            if result is None:
-                await ctx.response.send_message("No video found with the given URL.", ephemeral=True)
-            else:
-                name, colour, added_by = result
-                
-                username = added_by.split('#')[0]
-                
-                view = DeleteVideoView(ctx, url, name, colour, bot)
-                await ctx.response.send_message(f"`{name}` found in the `{colour}` database with the matching URL, added by `{username}`.", view=view)
+        result = await bot.video_manager.fetch_video_info(url)
+        if result is None:
+            await ctx.response.send_message("No video found with the given URL.", ephemeral=True)
+        else:
+            name, colour, added_by = result
+            username = added_by.split('#')[0]
+            view = DeleteVideoView(ctx, url, name, colour, bot)
+            await ctx.response.send_message(f"`{name}` found in the `{colour}` database with the matching URL, added by `{username}`.", view=view)

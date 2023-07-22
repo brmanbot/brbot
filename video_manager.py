@@ -208,3 +208,11 @@ class VideoManager:
             if video_url not in self.hall_of_fame:
                 self.hall_of_fame.append(video_url)
             self.save_data()
+    
+    async def fetch_video_info(self, url: str):
+        async with aiosqlite.connect("videos.db") as db:
+            query = "SELECT name, color, added_by FROM videos WHERE url = ? OR original_url = ?"
+            values = (url, url)
+            async with db.execute(query, values) as cursor:
+                result = await cursor.fetchone()
+        return result
