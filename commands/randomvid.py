@@ -46,9 +46,12 @@ class VideoActionsView(disnake.ui.View):
             await info_message.delete()
 
     @disnake.ui.button(label="Re-roll", style=disnake.ButtonStyle.primary,
-                       emoji="🔀", custom_id="reroll_video", row=0)
+                    emoji="🔀", custom_id="reroll_video", row=0)
     async def reroll_button(self, button: disnake.ui.Button,
                             interaction: disnake.Interaction):
+        button.disabled = True
+        await interaction.response.edit_message(view=self)
+
         current_time = time.time()
         available_videos = await self.bot.video_manager.get_available_videos_with_cooldown(
             self.selected_colors, current_time, self.bot.cooldown)
@@ -64,13 +67,13 @@ class VideoActionsView(disnake.ui.View):
                 if item.custom_id == "info_video":
                     item.disabled = False
 
-            await interaction.response.edit_message(content=f"{display_video_url}", view=view)
+            await interaction.followup.send(content=f"{display_video_url}", view=view)
 
             self.bot.video_manager.save_data()
         else:
             button.disabled = True
             await interaction.response.send_message("No available videos to re-roll.", ephemeral=True)
-            await interaction.message.edit(view=self)
+
 
     @disnake.ui.button(label="Info", style=disnake.ButtonStyle.primary,
                        emoji="ℹ️", custom_id="info_video", row=0)
