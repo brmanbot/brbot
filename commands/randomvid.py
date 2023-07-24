@@ -72,13 +72,12 @@ class VideoActionsView(disnake.ui.View):
             self.bot.video_manager.save_data()
         else:
             button.disabled = True
-            await interaction.response.send_message("No available videos to re-roll.", ephemeral=True)
-
+            await interaction.followup.send("No available videos to re-roll.", ephemeral=True)
 
     @disnake.ui.button(label="Info", style=disnake.ButtonStyle.primary,
-                       emoji="ℹ️", custom_id="info_video", row=0)
+                        emoji="ℹ️", custom_id="info_video", row=0)
     async def info_button(self, button: disnake.ui.Button,
-                          interaction: disnake.Interaction):
+                        interaction: disnake.Interaction):
         await interaction.response.defer()
         video_url = self.video_url
         if video_url.startswith("🏆 "):
@@ -102,6 +101,8 @@ class VideoActionsView(disnake.ui.View):
                 self.info_message_id = info_message.id
 
             button.disabled = True
+            await interaction.message.edit(view=self)
+
 
     @disnake.ui.button(label="Delete", style=disnake.ButtonStyle.primary, emoji="🗑️", custom_id="delete_video", row=0)
     async def delete_button(self, button: disnake.ui.Button, interaction: disnake.Interaction):
