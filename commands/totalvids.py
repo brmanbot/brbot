@@ -1,7 +1,13 @@
 import aiosqlite
 import disnake
+import aiohttp
+import matplotlib.pyplot as plt
+import os
+import matplotlib.patheffects as pe
 from utils import bot
 from config import GUILD_IDS
+
+IMAGE_PATH = 'pie_chart.png'
 
 def setup(bot):
     @bot.slash_command(
@@ -17,15 +23,41 @@ def setup(bot):
     async def create_total_videos_embed():
         db = await aiosqlite.connect("videos.db")
         try:
-            colors = ["green", "red", "yellow"]
+            color_labels = ["green", "red", "yellow"]
+            pastel_colors = ['#77dd77', '#ff6961', '#fdfd96']
             color_counts = {}
-            for color in colors:
+            for color in color_labels:
                 query = "SELECT COUNT(*) FROM videos WHERE LOWER(color) = ?"
                 values = (color,)
                 async with db.execute(query, values) as cursor:
                     color_counts[color] = (await cursor.fetchone())[0]
 
             total_videos = sum(color_counts.values())
+
+            fig, ax = plt.subplots(figsize=(6,6))
+            fig.patch.set_visible(False)
+            ax.axis('off')
+
+            wedges, texts, autotexts = plt.pie(color_counts.values(), labels=None, autopct='%1.1f%%', colors=pastel_colors, wedgeprops=dict(width=0.3), pctdistance=0.85, textprops={'fontsize': 12, 'color': 'white'})
+
+            plt.setp(autotexts, path_effects=[pe.withStroke(linewidth=3, foreground='black')])
+
+            plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
+            plt.savefig(IMAGE_PATH, transparent=True)
+
+            async with aiohttp.ClientSession() as session:
+                with open(IMAGE_PATH, 'rb') as f:
+                    form = aiohttp.FormData()
+                    form.add_field('reqtype', 'fileupload')
+                    form.add_field('userhash', '')
+                    form.add_field('fileToUpload', f, filename=IMAGE_PATH, content_type='image/png')
+                    async with session.post('https://catbox.moe/user/api.php', data=form) as resp:
+                        if resp.status != 200:
+                            return await ctx.send('Could not upload the image.')
+                        else:
+                            img_url = await resp.text()
+
+            os.remove(IMAGE_PATH)
 
             embed = disnake.Embed(
                 title=f"Total videos in the database ({total_videos})",
@@ -34,7 +66,9 @@ def setup(bot):
 
             for color, count in color_counts.items():
                 embed.add_field(name=f"{color.capitalize()} videos", value=f"{count}", inline=True)
-
+            
+            embed.set_image(url=img_url)
+            
             return embed
         finally:
             await db.close()
