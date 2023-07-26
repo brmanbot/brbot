@@ -17,10 +17,6 @@ class ConfirmView(disnake.ui.View):
             video_name, _, _ = video_info
             await self.original_view.bot.video_manager.remove_video(self.original_view.video_url, 'url')
             await interaction.response.send_message(f"Deleted `{video_name}` from the database.")
-            for item in self.original_view.children:
-                if item.custom_id in ["delete_video", "info_video"]:
-                    item.disabled = True
-            self.confirm_button.disabled = True
             await self.original_view.ctx.edit_original_message(view=self.original_view)
 
 
@@ -36,8 +32,6 @@ class VideoActionsView(disnake.ui.View):
         self.info_message_channel_id = info_message_channel_id
 
     async def on_timeout(self):
-        for item in self.children:
-            item.disabled = True
         message = await self.ctx.original_message()
         await message.edit(view=self)
         if self.info_message_id is not None:
@@ -49,7 +43,6 @@ class VideoActionsView(disnake.ui.View):
                     emoji="🔀", custom_id="reroll_video", row=0)
     async def reroll_button(self, button: disnake.ui.Button,
                             interaction: disnake.Interaction):
-        button.disabled = True
         await interaction.response.edit_message(view=self)
 
         current_time = time.time()
@@ -63,15 +56,10 @@ class VideoActionsView(disnake.ui.View):
                 self.ctx, display_video_url, self.bot, self.selected_colors,
                 self.info_message_id, self.info_message_channel_id)
 
-            for item in view.children:
-                if item.custom_id == "info_video":
-                    item.disabled = False
-
             await interaction.followup.send(content=f"{display_video_url}", view=view)
 
             self.bot.video_manager.save_data()
         else:
-            button.disabled = True
             await interaction.followup.send("No available videos to re-roll.", ephemeral=True)
 
     @disnake.ui.button(label="Info", style=disnake.ButtonStyle.primary,
@@ -100,9 +88,7 @@ class VideoActionsView(disnake.ui.View):
                 self.info_message_channel_id = info_message.channel.id
                 self.info_message_id = info_message.id
 
-            button.disabled = True
             await interaction.message.edit(view=self)
-
 
     @disnake.ui.button(label="Delete", style=disnake.ButtonStyle.primary, emoji="🗑️", custom_id="delete_video", row=0)
     async def delete_button(self, button: disnake.ui.Button, interaction: disnake.Interaction):
