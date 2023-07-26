@@ -10,6 +10,7 @@ import disnake
 from disnake.ext import commands
 from disnake import ApplicationCommandInteraction
 from disnake.ext.commands import InteractionBot
+import requests
 
 from config import BOSSMANROLE_ID, ALLOWED_USER_ID, INTENTS, get_cooldown, update_cooldown
 from database import fisher_yates_shuffle
@@ -42,12 +43,15 @@ setup_data = {"message_id": 0, "channel_id": 0, "target_channel_id": 0}
 
 # Utility Functions
 async def shorten_url(url: str) -> str:
-    s = pyshorteners.Shortener()
+    loop = asyncio.get_event_loop()
     try:
-        return s.isgd.short(url)
-    except pyshorteners.exceptions.ShorteningErrorException:
+        response = await loop.run_in_executor(None, requests.get, 'https://da.gd/shorten?r=1&url={}'.format(url))
+        response.raise_for_status()
+        return response.text.strip()
+    except requests.exceptions.RequestException as e:
+        print(f"Error shortening URL: {e}")
         return None
-
+                                        
 
 async def autocomp_colours(inter: ApplicationCommandInteraction, user_input: str):
     colours = ["Green", "Red", "Yellow"]
