@@ -4,6 +4,7 @@ import aiohttp
 import matplotlib.pyplot as plt
 import os
 import matplotlib.patheffects as pe
+import matplotlib.colors as mcolors
 from collections import defaultdict
 from utils import bot
 from config import GUILD_IDS
@@ -35,11 +36,23 @@ def setup(bot):
 
             total_videos = sum(user_counts.values())
 
+            color_list = list(mcolors.TABLEAU_COLORS.keys())
+            
+            user_colors = {user: color_list[i % len(color_list)].replace('tab:', '') for i, user in enumerate(user_counts.keys())}
+
             fig, ax = plt.subplots(figsize=(6,6))
             fig.patch.set_visible(False)
             ax.axis('off')
 
-            wedges, texts, autotexts = plt.pie(user_counts.values(), labels=None, autopct='%1.1f%%', wedgeprops=dict(width=0.3), pctdistance=0.85, textprops={'fontsize': 12, 'color': 'white'})
+            wedges, texts, autotexts = plt.pie(
+                user_counts.values(),
+                labels=None,
+                autopct='%1.1f%%',
+                colors=[user_colors[user] for user in user_counts.keys()],
+                wedgeprops=dict(width=0.3),
+                pctdistance=0.85,
+                textprops={'fontsize': 12, 'color': 'white'}
+            )
 
             plt.setp(autotexts, path_effects=[pe.withStroke(linewidth=3, foreground='black')])
 
@@ -67,7 +80,7 @@ def setup(bot):
 
             sorted_users = sorted(user_counts.items(), key=lambda item: item[1], reverse=True)
             for user, count in sorted_users:
-                embed.add_field(name=f"{user}", value=f"{count}", inline=False)
+                embed.add_field(name=f"{user} ({user_colors[user]})", value=f"{count}", inline=False)
             
             embed.set_image(url=img_url)
             
