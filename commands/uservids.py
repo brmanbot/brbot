@@ -21,7 +21,6 @@ def setup(bot):
         embed = await create_user_videos_embed()
         await ctx.response.send_message(embed=embed)
 
-
     async def create_user_videos_embed():
         db = await aiosqlite.connect("videos.db")
         try:
@@ -36,25 +35,27 @@ def setup(bot):
 
             total_videos = sum(user_counts.values())
 
-            color_list = list(mcolors.TABLEAU_COLORS.keys())
-            
-            user_colors = {user: color_list[i % len(color_list)].replace('tab:', '') for i, user in enumerate(user_counts.keys())}
+            sorted_users = sorted(user_counts.items(), key=lambda item: item[1], reverse=True)
 
-            fig, ax = plt.subplots(figsize=(6,6))
+            color_list = list(mcolors.TABLEAU_COLORS.keys())
+            user_colors = {user: color_list[i % len(color_list)].replace('tab:', '') for i, (user, _) in enumerate(sorted_users)}
+
+            fig, ax = plt.subplots(figsize=(10,10))
             fig.patch.set_visible(False)
             ax.axis('off')
 
             wedges, texts, autotexts = plt.pie(
-                user_counts.values(),
+                [count for _, count in sorted_users],
                 labels=None,
                 autopct='%1.1f%%',
-                colors=[user_colors[user] for user in user_counts.keys()],
+                colors=[user_colors[user] for user, _ in sorted_users],
                 wedgeprops=dict(width=0.3),
                 pctdistance=0.85,
-                textprops={'fontsize': 12, 'color': 'white'}
+                textprops={'fontsize': 24, 'color': 'white'}
             )
 
             plt.setp(autotexts, path_effects=[pe.withStroke(linewidth=3, foreground='black')])
+            plt.legend([f"{user} {count}" for user, count in sorted_users], loc="upper left", bbox_to_anchor=(0,1), fontsize=14)
 
             plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
             plt.savefig(IMAGE_PATH, transparent=True)
@@ -77,10 +78,6 @@ def setup(bot):
                 title=f"Total videos added by each user ({total_videos})",
                 color=disnake.Color.blurple()
             )
-
-            sorted_users = sorted(user_counts.items(), key=lambda item: item[1], reverse=True)
-            for user, count in sorted_users:
-                embed.add_field(name=f"{user} ({user_colors[user]})", value=f"{count}", inline=False)
             
             embed.set_image(url=img_url)
             
