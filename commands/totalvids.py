@@ -24,7 +24,7 @@ def setup(bot):
         db = await aiosqlite.connect("videos.db")
         try:
             color_labels = ["green", "red", "yellow"]
-            pastel_colors = ['#77dd77', '#ff6961', '#fdfd96']
+            pastel_colors = ['#4E9A06', '#A40000', '#FDBF11']
             color_counts = {}
             for color in color_labels:
                 query = "SELECT COUNT(*) FROM videos WHERE LOWER(color) = ?"
@@ -34,13 +34,15 @@ def setup(bot):
 
             total_videos = sum(color_counts.values())
 
-            fig, ax = plt.subplots(figsize=(6,6))
+            fig, ax = plt.subplots(figsize=(10,10))
             fig.patch.set_visible(False)
             ax.axis('off')
 
-            wedges, texts, autotexts = plt.pie(color_counts.values(), labels=None, autopct='%1.1f%%', colors=pastel_colors, wedgeprops=dict(width=0.3), pctdistance=0.85, textprops={'fontsize': 12, 'color': 'white'})
+            wedges, texts, autotexts = plt.pie(color_counts.values(), labels=None, autopct='%1.1f%%', colors=pastel_colors, wedgeprops=dict(width=0.3), pctdistance=0.85, textprops={'fontsize': 24, 'color': 'white'})
 
             plt.setp(autotexts, path_effects=[pe.withStroke(linewidth=3, foreground='black')])
+
+            plt.legend([f"{color.capitalize()} {count}" for color, count in color_counts.items()], loc="upper left", bbox_to_anchor=(0,1), fontsize=14)
 
             plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
             plt.savefig(IMAGE_PATH, transparent=True)
@@ -64,9 +66,6 @@ def setup(bot):
                 color=disnake.Color.blurple()
             )
 
-            for color, count in color_counts.items():
-                embed.add_field(name=f"{color.capitalize()} videos", value=f"{count}", inline=True)
-            
             embed.set_image(url=img_url)
             
             return embed
