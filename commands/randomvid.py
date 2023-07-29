@@ -94,7 +94,7 @@ class VideoActionsView(disnake.ui.View):
                 info_message = await channel.fetch_message(self.info_message_id)
                 await info_message.delete()
 
-            info_message = await self.ctx.send(info_message_content)
+            info_message = await interaction.followup.send(info_message_content)
 
             if info_message is not None:
                 self.info_message_channel_id = info_message.channel.id
