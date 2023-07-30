@@ -148,7 +148,7 @@ def setup(bot):
         played_videos[chosen_video] = current_time
         bot.video_manager.save_data()
 
-        await asyncio.sleep(1.5)
+        await asyncio.sleep(0)
         if yellow_role_users:
             yellow_role_users = [member for member in guild.members if yellow_role in member.roles]
             
