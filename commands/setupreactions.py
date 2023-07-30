@@ -104,7 +104,7 @@ def setup(bot):
 
         emoji = str(payload.emoji)
         random_emojis = all_guild_emojis[:4]
-        
+
         yellow_role = disnake.utils.get(guild.roles, id=YELLOW_ROLE_ID)
         green_role = disnake.utils.get(guild.roles, id=GREEN_ROLE_ID)
         red_role = disnake.utils.get(guild.roles, id=RED_ROLE_ID)
@@ -112,23 +112,19 @@ def setup(bot):
         if emoji not in ALLOWED_EMOJIS:
             return
 
-        emoji_to_color_and_message = {
-            "✅": ("green", f"{user.mention} is {green_role.mention} {random_emojis[1]}\n"),
-            "❌": ("red", f"{user.mention} is {red_role.mention} {random_emojis[2]}\n"),
-            "🤔": ("yellow", f"{user.mention} is {yellow_role.mention} {random_emojis[3]}\n")
-        }
-
-        if emoji not in emoji_to_color_and_message:
-            return
-
-        color, user_message = emoji_to_color_and_message[emoji]
+        color = None
+        if emoji == "✅":
+            color = "green"
+        elif emoji == "❌":
+            color = "red"
+        elif emoji == "🤔":
+            color = "yellow"
 
         yellow_role_users = []
-        if color == "green":
-            if yellow_role:
-                for member in guild.members:
-                    if yellow_role in member.roles:
-                        yellow_role_users.append(member)
+        if color == "green" and yellow_role:
+            for member in guild.members:
+                if yellow_role in member.roles:
+                    yellow_role_users.append(member)
 
         played_videos = bot.video_manager.played_videos
         current_time = time.time()
@@ -149,9 +145,17 @@ def setup(bot):
         bot.video_manager.save_data()
 
         await asyncio.sleep(0)
-        if yellow_role_users:
-            yellow_role_users = [member for member in guild.members if yellow_role in member.roles]
-            
+        yellow_role_users = [member for member in guild.members if yellow_role in member.roles]
+
+        emoji_to_color_and_message = {
+            "✅": (f"{user.mention} is {green_role.mention} {random_emojis[1]}\n"),
+            "❌": (f"{user.mention} is {red_role.mention} {random_emojis[2]}\n"),
+            "🤔": (f"{user.mention} is {yellow_role.mention} {random_emojis[3]}\n")
+        }
+
+        user_message = emoji_to_color_and_message[emoji]
+
+        if yellow_role_users and color == "green":
             user_message += f"Does that change your mind {yellow_role.mention} {random_emojis[0]}❓\n\n{chosen_video}"
             message_in_target_channel_id = await send_message_and_add_reaction(target_channel, user_message)
             reaction_message_ids.setdefault(payload.guild_id, []).append(message_in_target_channel_id)
