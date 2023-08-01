@@ -49,12 +49,12 @@ class VideoActionsView(disnake.ui.View):
 
     async def disable_buttons_after_delay(self, bot, ctx, message_id, delay):
         await asyncio.sleep(delay)
-        view = bot.active_videos.get(message_id)
+        message = await ctx.channel.fetch_message(message_id)
+        view = bot.active_videos.get(message.id)
         if view is not None:
             view.disable_all_buttons()
-            message = await ctx.channel.fetch_message(message_id)
             await message.edit(view=view)
-            del bot.active_videos[message_id]
+            del bot.active_videos[message.id]
 
     @disnake.ui.button(label="Re-roll", style=disnake.ButtonStyle.primary,
                     emoji="🔀", custom_id="reroll_video", row=0)
@@ -173,5 +173,7 @@ def setup(bot):
         view = VideoActionsView(ctx, display_video, bot, colours)
         message = await ctx.edit_original_message(content=f"{display_video}", view=view)
         bot.active_videos[message.id] = view
+
+        asyncio.create_task(view.disable_buttons_after_delay(bot, ctx, message.id, view.timeout))
         
         bot.video_manager.save_data()
