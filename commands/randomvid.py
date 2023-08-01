@@ -40,10 +40,6 @@ class VideoActionsView(disnake.ui.View):
             item.disabled = True
         message = await self.ctx.original_message()
         await message.edit(view=self)
-        if self.info_message_id is not None:
-            channel = self.bot.get_channel(self.info_message_channel_id)
-            info_message = await channel.fetch_message(self.info_message_id)
-            await info_message.delete()
 
     @disnake.ui.button(label="Re-roll", style=disnake.ButtonStyle.primary,
                     emoji="🔀", custom_id="reroll_video", row=0)
@@ -89,11 +85,6 @@ class VideoActionsView(disnake.ui.View):
             info_message_content = (
                 f"`{name}` found in the `{colour}` database with the matching URL, added by `{username}`.")
 
-            if self.info_message_id is not None:
-                channel = self.bot.get_channel(self.info_message_channel_id)
-                info_message = await channel.fetch_message(self.info_message_id)
-                await info_message.delete()
-
             info_message = await interaction.followup.send(info_message_content)
 
             if info_message is not None:
@@ -104,7 +95,7 @@ class VideoActionsView(disnake.ui.View):
             await interaction.message.edit(view=self)
 
 
-    @disnake.ui.button(label="Delete", style=disnake.ButtonStyle.primary, emoji="🗑️", custom_id="delete_video", row=0)
+    @disnake.ui.button(label="Delete", style=disnake.ButtonStyle.danger, emoji="🗑️", custom_id="delete_video", row=0)
     async def delete_button(self, button: disnake.ui.Button, interaction: disnake.Interaction):
         if not await has_role_check(interaction):
             await interaction.response.send_message("You don't have the permissions to delete this video.", ephemeral=True)
