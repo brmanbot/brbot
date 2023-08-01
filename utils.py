@@ -23,7 +23,8 @@ class CustomBot(InteractionBot):
         super().__init__(*args, **kwargs)
         self._cooldown = None
         self.update_cooldown()
-        self.video_manager = None   # Initialized to None initially
+        self.video_manager = None
+        self.active_videos = {}
 
     @property
     def cooldown(self):

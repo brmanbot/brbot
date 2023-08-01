@@ -1,8 +1,7 @@
+import asyncio
 import disnake
 import time
-from commands.findvid import DeleteVideoView
 from utils import bot, has_role_check
-from config import GUILD_IDS
 
 
 class ConfirmView(disnake.ui.View):
@@ -11,7 +10,7 @@ class ConfirmView(disnake.ui.View):
         self.original_view = original_view
 
     @disnake.ui.button(style=disnake.ButtonStyle.success, label='Confirm')
-    async def confirm_button(self, _, interaction: disnake.Interaction):
+    async def confirm_button(self, _, interaction):
         video_info = await self.original_view.bot.video_manager.fetch_video_info(self.original_view.video_url)
         if video_info is not None:
             video_name, _, _ = video_info
@@ -26,25 +25,40 @@ class ConfirmView(disnake.ui.View):
 
 class VideoActionsView(disnake.ui.View):
     def __init__(self, ctx, video_url, bot, selected_colors,
-                 info_message_id=None, info_message_channel_id=None):
-        super().__init__(timeout=180)
+                 info_message_id=None, info_message_channel_id=None,
+                 start_time=None):
         self.ctx = ctx
         self.video_url = video_url
         self.bot = bot
         self.selected_colors = selected_colors
         self.info_message_id = info_message_id
         self.info_message_channel_id = info_message_channel_id
+        self.start_time = start_time if start_time is not None else time.time()
 
-    async def on_timeout(self):
+        remaining_time = 180 - (time.time() - self.start_time)
+
+        if remaining_time <= 0:
+            super().__init__(timeout=None)
+            self.disable_all_buttons()
+        else:
+            super().__init__(timeout=remaining_time)
+
+    def disable_all_buttons(self):
         for item in self.children:
             item.disabled = True
-        message = await self.ctx.original_message()
-        await message.edit(view=self)
+
+    async def disable_buttons_after_delay(self, bot, ctx, message_id, delay):
+        await asyncio.sleep(delay)
+        view = bot.active_videos.get(message_id)
+        if view is not None:
+            view.disable_all_buttons()
+            message = await ctx.channel.fetch_message(message_id)
+            await message.edit(view=view)
+            del bot.active_videos[message_id]
 
     @disnake.ui.button(label="Re-roll", style=disnake.ButtonStyle.primary,
                     emoji="🔀", custom_id="reroll_video", row=0)
-    async def reroll_button(self, button: disnake.ui.Button,
-                            interaction: disnake.Interaction):
+    async def reroll_button(self, button, interaction):
         button.disabled = True
         await interaction.response.edit_message(view=self)
 
@@ -57,13 +71,16 @@ class VideoActionsView(disnake.ui.View):
             display_video_url = "🏆 " + new_video_url if new_video_url in self.bot.video_manager.hall_of_fame else new_video_url
             view = VideoActionsView(
                 self.ctx, display_video_url, self.bot, self.selected_colors,
-                self.info_message_id, self.info_message_channel_id)
+                self.info_message_id, self.info_message_channel_id, time.time())
 
             for item in view.children:
                 if item.custom_id == "info_video":
                     item.disabled = False
 
-            await interaction.followup.send(content=f"{display_video_url}", view=view)
+            new_message = await interaction.followup.send(content=f"{display_video_url}", view=view)
+            self.bot.active_videos[new_message.id] = view
+
+            asyncio.create_task(self.disable_buttons_after_delay(self.bot, self.ctx, new_message.id, view.timeout))
 
             self.bot.video_manager.save_data()
         else:
@@ -72,8 +89,7 @@ class VideoActionsView(disnake.ui.View):
 
     @disnake.ui.button(label="Info", style=disnake.ButtonStyle.primary,
                         emoji="ℹ️", custom_id="info_video", row=0)
-    async def info_button(self, button: disnake.ui.Button,
-                        interaction: disnake.Interaction):
+    async def info_button(self, button, interaction):
         await interaction.response.defer()
         video_url = self.video_url
         if video_url.startswith("🏆 "):
@@ -96,7 +112,7 @@ class VideoActionsView(disnake.ui.View):
 
 
     @disnake.ui.button(label="Delete", style=disnake.ButtonStyle.danger, emoji="🗑️", custom_id="delete_video", row=0)
-    async def delete_button(self, button: disnake.ui.Button, interaction: disnake.Interaction):
+    async def delete_button(self, button, interaction):
         if not await has_role_check(interaction):
             await interaction.response.send_message("You don't have the permissions to delete this video.", ephemeral=True)
             return
@@ -118,7 +134,6 @@ def setup(bot):
     @bot.slash_command(
         name="randomvid",
         description="Retrieve a random video from a random or specific colour database.",
-        guild_ids=GUILD_IDS,
         options=[
             disnake.Option("colour", "The colour database to search for videos.",
                            type=disnake.OptionType.string, required=False,
@@ -132,29 +147,31 @@ def setup(bot):
     )
     async def randomvid(ctx, colour: str = "yellow"):
         assert bot.video_manager is not None, "video_manager is not initialized"
-
+        
         await ctx.response.defer()
-
+        
         played_videos = bot.video_manager.played_videos
         current_time = time.time()
-
+        
         if colour == "all":
             colours = ["green", "red", "yellow"]
         else:
             colours = [colour]
-
+        
         available_videos = await bot.video_manager.get_available_videos_with_cooldown(
             colours, current_time, bot.cooldown)
-
+        
         if not available_videos:
             await ctx.followup.send("No videos found that meet the cooldown requirement.")
             return
-
+        
         chosen_video = available_videos[0]
         bot.video_manager.played_videos[chosen_video] = current_time
-
+        
         display_video = "🏆 " + chosen_video if chosen_video in bot.video_manager.hall_of_fame else chosen_video
-
+        
         view = VideoActionsView(ctx, display_video, bot, colours)
-        await ctx.edit_original_message(content=f"{display_video}", view=view)
+        message = await ctx.edit_original_message(content=f"{display_video}", view=view)
+        bot.active_videos[message.id] = view
+        
         bot.video_manager.save_data()
