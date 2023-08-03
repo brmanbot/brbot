@@ -95,8 +95,11 @@ class VideoManager:
             if removed_url in self.hall_of_fame:
                 self.hall_of_fame.remove(removed_url)
 
-            username, discriminator = added_by.split("#")
-            user = next((u for u in self.bot.users if u.name == username and u.discriminator == discriminator), None)
+            username_parts = added_by.split("#")
+            username = username_parts[0]
+            discriminator = username_parts[1] if len(username_parts) > 1 else None
+
+            user = next((u for u in self.bot.users if u.name == username and (u.discriminator == discriminator if discriminator else True)), None)
 
             if user and user.id != deleted_by.id:
                 channel = self.bot.get_channel(MOD_LOG)
