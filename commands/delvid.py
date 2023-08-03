@@ -2,7 +2,7 @@ import asyncio
 import aiosqlite
 import disnake
 from utils import bot, has_role_check
-from config import GUILD_IDS
+from config import GUILD_IDS, MOD_LOG
 
 
 class DeleteVideoView(disnake.ui.View):
@@ -41,7 +41,7 @@ class DeleteVideoView(disnake.ui.View):
         if len(self.matched_videos) > 1:
             deleted_videos = []
             for video in self.matched_videos:
-                removed_url, removed_name = await self.ctx.bot.video_manager.remove_video(video['url'], "url") 
+                removed_url, removed_name = await self.ctx.bot.video_manager.remove_video(video['url'], "url", MOD_LOG, self.ctx.author) 
                 if removed_url and removed_name:
                     deleted_videos.append(removed_name)
 
@@ -79,7 +79,7 @@ def setup(bot):
 
         if exact_match:
             name, url = exact_match
-            removed_url, removed_name = await ctx.bot.video_manager.remove_video(url, "url")  # updated here
+            removed_url, removed_name = await ctx.bot.video_manager.remove_video(url, "url", MOD_LOG, ctx.author)
             if removed_url and removed_name:
                 await ctx.response.send_message(f"Deleted `{removed_name}` from the database.")
             else:

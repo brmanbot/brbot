@@ -3,6 +3,7 @@ import json
 from private_config import (
     BOT_TOKEN, GUILD_IDS, ADMIN, ADMIN_ROLE, 
     GREEN, RED, YELLOW,
+    MOD_LOG,
 )
 
 BOSSMANROLE_ID = ADMIN_ROLE
@@ -18,6 +19,8 @@ INTENTS.members = True
 GREEN_ROLE_ID = GREEN
 RED_ROLE_ID = RED
 YELLOW_ROLE_ID = YELLOW
+
+MOD_LOG = MOD_LOG
 
 def get_config_data():
     try:

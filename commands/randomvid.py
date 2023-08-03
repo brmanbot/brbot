@@ -2,19 +2,21 @@ import asyncio
 import disnake
 import time
 from utils import bot, has_role_check
+from config import MOD_LOG
 
 
 class ConfirmView(disnake.ui.View):
-    def __init__(self, original_view):
+    def __init__(self, original_view, ctx):
         super().__init__()
         self.original_view = original_view
+        self.ctx = ctx
 
     @disnake.ui.button(style=disnake.ButtonStyle.success, label='Confirm')
     async def confirm_button(self, _, interaction):
         video_info = await self.original_view.bot.video_manager.fetch_video_info(self.original_view.video_url)
         if video_info is not None:
             video_name, _, _ = video_info
-            await self.original_view.bot.video_manager.remove_video(self.original_view.video_url, 'url')
+            await self.original_view.bot.video_manager.remove_video(self.original_view.video_url, 'url', MOD_LOG, self.ctx.author)
             await interaction.response.send_message(f"Deleted `{video_name}` from the database.")
             for item in self.original_view.children:
                 if item.custom_id in ["delete_video", "info_video"]:
@@ -123,7 +125,7 @@ class VideoActionsView(disnake.ui.View):
         video_info = await self.bot.video_manager.fetch_video_info(video_url)
         if video_info is not None:
             video_name, _, _ = video_info
-            confirm_view = ConfirmView(self)
+            confirm_view = ConfirmView(self, self.ctx)
             confirm_message = await interaction.response.send_message("Are you sure you want to delete this video?", view=confirm_view, ephemeral=True)
             confirm_view.message = confirm_message
         else:

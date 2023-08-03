@@ -11,7 +11,7 @@ import pkgutil
 print("Starting the bot...")
 
 async def setup_video_manager(bot):
-    bot.video_manager = await VideoManager.create()
+    bot.video_manager = await VideoManager.create(bot)
 
 async def setup_reaction_handler_on_restart(bot):
     for guild in bot.guilds:

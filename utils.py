@@ -37,8 +37,8 @@ class CustomBot(InteractionBot):
 bot = CustomBot(intents=INTENTS)
 
 async def setup_video_manager(bot):
-    bot.video_manager = await VideoManager.create()
-
+    bot.video_manager = await VideoManager.create(bot)
+    
 setup_data = {"message_id": 0, "channel_id": 0, "target_channel_id": 0}
 
 

@@ -3,11 +3,13 @@ import json
 import os
 import aiosqlite
 from database import fisher_yates_shuffle
+from config import MOD_LOG
 
 COLORS = ["green", "red", "yellow"]
 
 class VideoManager:
-    def __init__(self):
+    def __init__(self, bot):
+        self.bot = bot
         self.video_lists = {}
         self.last_reset = {}
         self.played_videos = {}
@@ -40,11 +42,11 @@ class VideoManager:
             raise e
     
     @classmethod
-    async def create(cls):
-        video_manager = cls()
+    async def create(cls, bot):
+        video_manager = cls(bot)
         await video_manager.load_data()
         return video_manager
-
+    
     def save_data(self):
         try:
             with open("video_data.json", "w") as f:
@@ -59,9 +61,10 @@ class VideoManager:
             print(f"Error saving data to file: {e}")
             raise e
 
-    async def remove_video(self, identifier, identifier_type):
+    async def remove_video(self, identifier, identifier_type, MOD_LOG, deleted_by):
         removed_url = None
         removed_name = None
+        added_by = None
 
         async with aiosqlite.connect("videos.db") as db:
             for color in COLORS:
@@ -72,6 +75,9 @@ class VideoManager:
                     if result is not None:
                         removed_name = result[1]
                         removed_url = result[2]
+                        vidcolor= result[3]
+                        removed_og_url = result[4]
+                        added_by = result[6]
                         await db.execute(f"DELETE FROM videos WHERE {identifier_type} = ? AND color = ?", (identifier, color))
                         await db.commit()
                         break
@@ -89,7 +95,16 @@ class VideoManager:
             if removed_url in self.hall_of_fame:
                 self.hall_of_fame.remove(removed_url)
 
-            self.save_data()
+            username, discriminator = added_by.split("#")
+            user = next((u for u in self.bot.users if u.name == username and u.discriminator == discriminator), None)
+
+            if user and user.id != deleted_by.id:
+                channel = self.bot.get_channel(MOD_LOG)
+                if channel:
+                    message = f"<@{user.id}> your video `{removed_name}` has been deleted by `{deleted_by.name}` from the `{vidcolor}` database <a:ALERT:916868273142906891>\n{removed_og_url}"
+                    await channel.send(message)
+
+        self.save_data()
 
         return removed_url, removed_name
 

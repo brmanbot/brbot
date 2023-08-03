@@ -1,6 +1,6 @@
 import disnake
 from utils import bot
-from config import GUILD_IDS
+from config import GUILD_IDS, MOD_LOG
 
 class DeleteVideoView(disnake.ui.View):
     def __init__(self, ctx, url, name, colour, bot):
@@ -26,7 +26,7 @@ class DeleteVideoView(disnake.ui.View):
 
     @disnake.ui.button(label="Confirm Deletion", style=disnake.ButtonStyle.green, custom_id="confirm_deletion", row=1, disabled=True)
     async def confirm_button(self, button: disnake.ui.Button, interaction: disnake.Interaction):
-        removed_url, removed_name = await self.bot.video_manager.remove_video(self.url, "url")
+        removed_url, removed_name = await self.bot.video_manager.remove_video(self.url, "url", MOD_LOG, self.ctx.author)
         if removed_url and removed_name:
             await interaction.response.edit_message(content=f"Deleted `{removed_name}` from the database.", view=None)
         else:
