@@ -41,7 +41,7 @@ class DeleteVideoView(disnake.ui.View):
         if len(self.matched_videos) > 1:
             deleted_videos = []
             for video in self.matched_videos:
-                removed_url, removed_name = await self.ctx.bot.video_manager.remove_video(video['url'], "url", MOD_LOG, self.ctx.author) 
+                removed_url, removed_name = await self.ctx.bot.video_manager.remove_video(video['url'], "url", MOD_LOG, interaction.user) 
                 if removed_url and removed_name:
                     deleted_videos.append(removed_name)
 
