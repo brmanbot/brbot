@@ -13,10 +13,12 @@ class ConfirmView(disnake.ui.View):
 
     @disnake.ui.button(style=disnake.ButtonStyle.success, label='Confirm')
     async def confirm_button(self, _, interaction):
+        deleted_by_user = interaction.user
+
         video_info = await self.original_view.bot.video_manager.fetch_video_info(self.original_view.video_url)
         if video_info is not None:
             video_name, _, _ = video_info
-            await self.original_view.bot.video_manager.remove_video(self.original_view.video_url, 'url', MOD_LOG, self.ctx.author)
+            await self.original_view.bot.video_manager.remove_video(self.original_view.video_url, 'url', MOD_LOG, deleted_by_user)
             await interaction.response.send_message(f"Deleted `{video_name}` from the database.")
             for item in self.original_view.children:
                 if item.custom_id in ["delete_video", "info_video"]:
