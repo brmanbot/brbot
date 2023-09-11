@@ -62,11 +62,7 @@ def setup(bot):
 
             async with aiohttp.ClientSession() as session:
                 with open(IMAGE_PATH, 'rb') as f:
-                    form = aiohttp.FormData()
-                    form.add_field('reqtype', 'fileupload')
-                    form.add_field('userhash', '')
-                    form.add_field('fileToUpload', f, filename=IMAGE_PATH, content_type='image/png')
-                    async with session.post('https://catbox.moe/user/api.php', data=form) as resp:
+                    async with session.post('https://0x0.st', data={'file': f}) as resp:
                         if resp.status != 200:
                             return await ctx.send('Could not upload the image.')
                         else:
