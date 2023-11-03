@@ -65,8 +65,12 @@ def setup(bot):
         guild_ids=GUILD_IDS
     )
     async def hof(ctx):
-        video_manager = VideoManager()
-        await video_manager.load_data()
+        video_manager = bot.video_manager
         videos = video_manager.hall_of_fame
+        
+        if not videos:
+            await ctx.send("There are currently no videos in the hall of fame.")
+            return
+
         view = HallOfFameSelector(ctx, videos)
         await ctx.response.send_message(videos[0], view=view)
