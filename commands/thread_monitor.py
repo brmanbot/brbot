@@ -5,7 +5,7 @@ from datetime import timedelta
 class ThreadMonitor(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.TARGET_CHANNEL_ID = 1082813041122496602
+        self.TARGET_CHANNEL_ID = 1100169484939038881
 
     @commands.Cog.listener()
     async def on_thread_create(self, thread):
