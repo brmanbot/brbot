@@ -12,17 +12,30 @@ class ThreadMonitor(commands.Cog):
         if thread.parent_id == self.TARGET_CHANNEL_ID:
             await disnake.utils.sleep_until(thread.created_at + timedelta(seconds=1))
             messages = await thread.history(limit=100).flatten()
+            if not messages:
+                print("No messages to repost.")
+                return
+
             await thread.delete()
+
             parent_channel = self.bot.get_channel(self.TARGET_CHANNEL_ID)
             if parent_channel:
-                repost_message = "Messages reposted from a Clyde thread:\n"
+                repost_message = "Messages reposted from a thread:\n"
                 for message in messages[::-1]:
-                    repost_message += f"{message.content}\n"
+                    repost_message += f"{message.author.mention}: {message.content}\n"
                     if len(repost_message) > 1900:
-                        await parent_channel.send(repost_message)
+                        try:
+                            await parent_channel.send(repost_message)
+                        except Exception as e:
+                            print(f"Failed to send message: {e}")
                         repost_message = ""
                 if repost_message:
-                    await parent_channel.send(repost_message)
+                    try:
+                        await parent_channel.send(repost_message)
+                    except Exception as e:
+                        print(f"Failed to send message: {e}")
+            else:
+                print(f"Could not find the parent channel with ID {self.TARGET_CHANNEL_ID}")
 
 def setup(bot):
     bot.add_cog(ThreadMonitor(bot))
