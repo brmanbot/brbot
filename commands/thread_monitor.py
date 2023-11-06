@@ -10,7 +10,7 @@ class ThreadMonitor(commands.Cog):
     @commands.Cog.listener()
     async def on_thread_create(self, thread):
         if thread.parent_id == self.TARGET_CHANNEL_ID:
-            await disnake.utils.sleep_until(thread.created_at + timedelta(seconds=0.5))
+            await disnake.utils.sleep_until(thread.created_at + timedelta(seconds=1))
             messages = await thread.history(limit=100).flatten()
             await thread.delete()
             parent_channel = self.bot.get_channel(self.TARGET_CHANNEL_ID)
