@@ -44,11 +44,24 @@ class ThreadMonitor(commands.Cog):
     # Slash command to test functionality
     @commands.slash_command()
     async def testrepost(self, inter: disnake.ApplicationCommandInteraction, thread_id: int):
-        thread = inter.guild.get_thread(thread_id)
-        if thread:
-            messages = await thread.history(limit=100).flatten()
-            for message in messages:
-                await inter.response.send_message(f"{message.author.mention}: {message.content}")
+        # You might want to add checks to make sure the command is only used by you or someone with specific permissions
+        try:
+            thread = inter.guild.get_thread(thread_id)
+            if thread:
+                messages = await thread.history(limit=100).flatten()
+                repost_message = ""
+                for message in messages[::-1]:  # Reverse to maintain order
+                    repost_message += f"{message.author.mention}: {message.content}\n"
+                    if len(repost_message) > 1900:
+                        await inter.response.send_message(repost_message, ephemeral=True)
+                        repost_message = ""
+                if repost_message:  # Send any remaining content
+                    await inter.response.send_message(repost_message, ephemeral=True)
+            else:
+                await inter.response.send_message("Could not find the thread.", ephemeral=True)
+        except Exception as e:
+            await inter.response.send_message(f"An error occurred: {str(e)}", ephemeral=True)
+
 
 def setup(bot):
     bot.add_cog(ThreadMonitor(bot))
