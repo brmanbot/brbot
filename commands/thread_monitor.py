@@ -27,12 +27,14 @@ class ThreadMonitor(commands.Cog):
                 parent_channel = self.bot.get_channel(self.TARGET_CHANNEL_ID)
                 if parent_channel:
                     repost_message = "Messages reposted from a thread:\n"
-                    for message in messages[::-1]:
-                        repost_message += f"{message.author.mention}: {message.content}\n"
-                        # Check if the message length is over the Discord limit and send
-                        if len(repost_message) > 1900:
+                    for message in messages[::-1]:  # Reverse to maintain chronological order
+                        message_content = f"{message.author.mention}: {message.content}\n"
+                        if len(repost_message) + len(message_content) > 2000:
+                            # If the message will be too long, send what we have and start a new message
                             await parent_channel.send(repost_message)
                             repost_message = ""
+                        repost_message += message_content
+                    
                     # Send any remaining content
                     if repost_message:
                         await parent_channel.send(repost_message)
@@ -40,6 +42,7 @@ class ThreadMonitor(commands.Cog):
                     logging.error(f"Could not find the parent channel with ID {self.TARGET_CHANNEL_ID}")
         except Exception as e:
             logging.exception("An error occurred in on_thread_create:")
+
 
     # Slash command to test functionality
     @commands.slash_command()
