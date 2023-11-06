@@ -1,10 +1,5 @@
-import disnake
 from disnake.ext import commands
-from datetime import timedelta
-import logging
-
-# Set up basic logging to print to stderr
-logging.basicConfig(level=logging.INFO)
+import disnake
 
 class ThreadMonitor(commands.Cog):
     def __init__(self, bot):
@@ -13,64 +8,43 @@ class ThreadMonitor(commands.Cog):
 
     @commands.Cog.listener()
     async def on_thread_create(self, thread):
-        try:
-            if thread.parent_id == self.TARGET_CHANNEL_ID:
-                await disnake.utils.sleep_until(thread.created_at + timedelta(seconds=1))
-                messages = await thread.history(limit=100).flatten()
+        if thread.parent_id == self.TARGET_CHANNEL_ID:
+            messages = await thread.history(limit=100).flatten()
+            if not messages:
+                print("No messages to repost.")
+                return
 
-                # Debugging: Print messages
-                logging.info(f"Fetched {len(messages)} messages from the thread.")
+            await thread.delete()
 
-                # Temporarily comment out deletion for testing
-                # await thread.delete()
-
-                parent_channel = self.bot.get_channel(self.TARGET_CHANNEL_ID)
-                if parent_channel:
-                    repost_message = "Messages reposted from a thread:\n"
-                    for message in messages[::-1]:  # Reverse to maintain chronological order
-                        message_content = f"{message.author.mention}: {message.content}\n"
-                        if len(repost_message) + len(message_content) > 2000:
-                            # If the message will be too long, send what we have and start a new message
-                            await parent_channel.send(repost_message)
-                            repost_message = ""
-                        repost_message += message_content
-                    
-                    # Send any remaining content
-                    if repost_message:
-                        await parent_channel.send(repost_message)
-                else:
-                    logging.error(f"Could not find the parent channel with ID {self.TARGET_CHANNEL_ID}")
-        except Exception as e:
-            logging.exception("An error occurred in on_thread_create:")
-
-
-    # Slash command to test functionality
-    @commands.slash_command()
-    async def testrepost(self, inter: disnake.ApplicationCommandInteraction, thread_id: str):
-        # Convert thread_id from string to int, if possible
-        try:
-            thread_id = int(thread_id)
-        except ValueError:
-            await inter.response.send_message("Thread ID must be an integer.", ephemeral=True)
-            return
-        
-        try:
-            thread = inter.guild.get_thread(thread_id)
-            if thread:
-                messages = await thread.history(limit=100).flatten()
+            parent_channel = self.bot.get_channel(self.TARGET_CHANNEL_ID)
+            if parent_channel:
                 repost_message = ""
-                for message in messages[::-1]:  # Reverse to maintain order
-                    repost_message += f"{message.author.mention}: {message.content}\n"
-                    if len(repost_message) > 1900:
-                        await inter.followup.send(repost_message, ephemeral=True)
-                        repost_message = ""
-                if repost_message:  # Send any remaining content
-                    await inter.followup.send(repost_message, ephemeral=True)
-            else:
-                await inter.response.send_message("Could not find the thread.", ephemeral=True)
-        except Exception as e:
-            await inter.response.send_message(f"An error occurred: {str(e)}", ephemeral=True)
+                for message in messages[::-1]:
+                    content = message.content
+                    if message.attachments:
+                        content += '\n'.join(attachment.url for attachment in message.attachments)
+                    if message.embeds:
+                        content += '\n'.join(str(embed.to_dict()) for embed in message.embeds)
 
+                    new_message = f"{message.author.mention}: {content}\n"
+                    if len(repost_message) + len(new_message) > 1900:
+                        # Send current message if the new message would exceed the limit
+                        try:
+                            await parent_channel.send(repost_message)
+                        except Exception as e:
+                            print(f"Failed to send message: {e}")
+                        repost_message = new_message  # Start a new message with the new content
+                    else:
+                        repost_message += new_message
+
+                # After loop, send any remaining content
+                if repost_message:
+                    try:
+                        await parent_channel.send(repost_message)
+                    except Exception as e:
+                        print(f"Failed to send message: {e}")
+            else:
+                print(f"Could not find the parent channel with ID {self.TARGET_CHANNEL_ID}")
 
 def setup(bot):
     bot.add_cog(ThreadMonitor(bot))
