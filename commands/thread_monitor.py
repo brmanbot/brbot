@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO)
 class ThreadMonitor(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.TARGET_CHANNEL_ID = 1100169484939038881
+        self.TARGET_CHANNEL_ID = 1082813041122496602
 
     @commands.Cog.listener()
     async def on_thread_create(self, thread):
@@ -17,7 +17,7 @@ class ThreadMonitor(commands.Cog):
             if thread.parent_id == self.TARGET_CHANNEL_ID:
                 await disnake.utils.sleep_until(thread.created_at + timedelta(seconds=1))
                 messages = await thread.history(limit=100).flatten()
-                
+
                 # Debugging: Print messages
                 logging.info(f"Fetched {len(messages)} messages from the thread.")
 
@@ -40,15 +40,15 @@ class ThreadMonitor(commands.Cog):
                     logging.error(f"Could not find the parent channel with ID {self.TARGET_CHANNEL_ID}")
         except Exception as e:
             logging.exception("An error occurred in on_thread_create:")
-    
-    # Manual command to test functionality
-    @commands.command()
-    async def testrepost(self, ctx, thread_id: int):
-        thread = ctx.guild.get_thread(thread_id)
+
+    # Slash command to test functionality
+    @commands.slash_command()
+    async def testrepost(self, inter: disnake.ApplicationCommandInteraction, thread_id: int):
+        thread = inter.guild.get_thread(thread_id)
         if thread:
             messages = await thread.history(limit=100).flatten()
             for message in messages:
-                await ctx.send(f"{message.author.mention}: {message.content}")
+                await inter.response.send_message(f"{message.author.mention}: {message.content}")
 
 def setup(bot):
     bot.add_cog(ThreadMonitor(bot))
