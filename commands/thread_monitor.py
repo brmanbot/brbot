@@ -15,9 +15,9 @@ class ThreadMonitor(commands.Cog):
             await thread.delete()
             parent_channel = self.bot.get_channel(self.TARGET_CHANNEL_ID)
             if parent_channel:
-                repost_message = "Messages reposted from a thread:\n"
+                repost_message = "Messages reposted from a Clyde thread:\n"
                 for message in messages[::-1]:
-                    repost_message += f"{message.author.mention}: {message.content}\n"
+                    repost_message += f"{message.content}\n"
                     if len(repost_message) > 1900:
                         await parent_channel.send(repost_message)
                         repost_message = ""
