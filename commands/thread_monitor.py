@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO)
 class ThreadMonitor(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.TARGET_CHANNEL_ID = 1082813041122496602
+        self.TARGET_CHANNEL_ID = 1100169484939038881
 
     @commands.Cog.listener()
     async def on_thread_create(self, thread):
@@ -43,8 +43,14 @@ class ThreadMonitor(commands.Cog):
 
     # Slash command to test functionality
     @commands.slash_command()
-    async def testrepost(self, inter: disnake.ApplicationCommandInteraction, thread_id: int):
-        # You might want to add checks to make sure the command is only used by you or someone with specific permissions
+    async def testrepost(self, inter: disnake.ApplicationCommandInteraction, thread_id: str):
+        # Convert thread_id from string to int, if possible
+        try:
+            thread_id = int(thread_id)
+        except ValueError:
+            await inter.response.send_message("Thread ID must be an integer.", ephemeral=True)
+            return
+        
         try:
             thread = inter.guild.get_thread(thread_id)
             if thread:
@@ -53,10 +59,10 @@ class ThreadMonitor(commands.Cog):
                 for message in messages[::-1]:  # Reverse to maintain order
                     repost_message += f"{message.author.mention}: {message.content}\n"
                     if len(repost_message) > 1900:
-                        await inter.response.send_message(repost_message, ephemeral=True)
+                        await inter.followup.send(repost_message, ephemeral=True)
                         repost_message = ""
                 if repost_message:  # Send any remaining content
-                    await inter.response.send_message(repost_message, ephemeral=True)
+                    await inter.followup.send(repost_message, ephemeral=True)
             else:
                 await inter.response.send_message("Could not find the thread.", ephemeral=True)
         except Exception as e:
