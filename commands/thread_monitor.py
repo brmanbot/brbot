@@ -48,11 +48,18 @@ class ThreadMonitor(commands.Cog):
         return ''
     
     @commands.slash_command(
-        name='addchannel',
-        description='Add a new channel to the thread monitor',
+        name='threadmonitor',
+        description='Manage channels for thread monitoring',
         guild_ids=GUILD_IDS
     )
-    async def add_channel(self, ctx, channel: disnake.TextChannel):
+    async def threadmonitor(self, ctx):
+        pass
+
+    @threadmonitor.sub_command(
+        name='add',
+        description='Add a channel to the thread monitor'
+    )
+    async def add(self, ctx, channel: disnake.TextChannel):
         if not await has_role_check(ctx):
             await ctx.send("You don't have permission to use this command.", ephemeral=True)
             return
@@ -61,16 +68,15 @@ class ThreadMonitor(commands.Cog):
         if channel_id not in self.TARGET_CHANNEL_IDS:
             self.TARGET_CHANNEL_IDS.append(channel_id)
             self.save_target_channels()
-            await ctx.send(f"Channel `{channel.name}` added to the thread monitor.", ephemeral=True)
+            await ctx.send(f"Channel {channel.mention} added to the thread monitor.", ephemeral=True)
         else:
-            await ctx.send(f"Channel `{channel.name}` is already in the thread monitor.", ephemeral=True)
+            await ctx.send(f"Channel {channel.mention} is already in the thread monitor.", ephemeral=True)
 
-    @commands.slash_command(
-        name='removechannel',
-        description='Remove a channel from the thread monitor',
-        guild_ids=GUILD_IDS
+    @threadmonitor.sub_command(
+        name='remove',
+        description='Remove a channel from the thread monitor'
     )
-    async def remove_channel(self, ctx, channel: disnake.TextChannel):
+    async def remove(self, ctx, channel: disnake.TextChannel):
         if not await has_role_check(ctx):
             await ctx.send("You don't have permission to use this command.", ephemeral=True)
             return
@@ -79,9 +85,9 @@ class ThreadMonitor(commands.Cog):
         if channel_id in self.TARGET_CHANNEL_IDS:
             self.TARGET_CHANNEL_IDS.remove(channel_id)
             self.save_target_channels()
-            await ctx.send(f"Channel `{channel.name}` removed from the thread monitor.", ephemeral=True)
+            await ctx.send(f"Channel {channel.mention} removed from the thread monitor.", ephemeral=True)
         else:
-            await ctx.send(f"Channel `{channel.name}` is not currently in the thread monitor.", ephemeral=True)
+            await ctx.send(f"Channel {channel.mention} is not currently in the thread monitor.", ephemeral=True)
 
     @commands.Cog.listener()
     async def on_thread_create(self, thread):
