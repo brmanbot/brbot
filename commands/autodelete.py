@@ -110,6 +110,8 @@ class AutoDelete(commands.Cog):
         if not channel:
             return
 
+        deletion_delay = 1.5
+        
         while True:
             now = datetime.datetime.utcnow().replace(tzinfo=pytz.UTC)
             try:
@@ -122,6 +124,7 @@ class AutoDelete(commands.Cog):
                     if time_diff > delay:
                         try:
                             await message.delete()
+                            await asyncio.sleep(deletion_delay)
                         except disnake.NotFound:
                             continue
             except disnake.Forbidden:
