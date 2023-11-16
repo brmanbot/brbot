@@ -108,10 +108,11 @@ class AutoDelete(commands.Cog):
         await self.bot.wait_until_ready()
         channel = self.bot.get_channel(channel_id)
         if not channel:
+            print(f"Channel with ID {channel_id} not found.")
             return
 
-        deletion_delay = 1.5
-        
+        deletion_delay = 3 
+
         while True:
             now = datetime.datetime.utcnow().replace(tzinfo=pytz.UTC)
             try:
@@ -119,17 +120,17 @@ class AutoDelete(commands.Cog):
                 for message in messages:
                     if message.pinned:
                         continue
-
-                    time_diff = (now - message.created_at).total_seconds()
-                    if time_diff > delay:
+                    if (now - message.created_at).total_seconds() > delay:
                         try:
                             await message.delete()
                             await asyncio.sleep(deletion_delay)
                         except disnake.NotFound:
                             continue
-            except disnake.Forbidden:
-                print(f"Missing permissions to read history or delete messages in channel {channel_id}")
-                return
+                        except Exception as e:
+                            print(f"Error deleting message: {e}")
+            except Exception as e:
+                print(f"Error fetching messages from channel {channel_id}: {e}")
+                await asyncio.sleep(60)
             await asyncio.sleep(delay)
 
     async def initialize_auto_delete(self):
