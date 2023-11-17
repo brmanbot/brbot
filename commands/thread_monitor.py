@@ -1,21 +1,22 @@
 import json
+import asyncio
 from disnake.ext import commands
 import disnake
-import asyncio
 from config import GUILD_IDS
 from utils import has_role_check
 
 class ThreadMonitor(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.load_target_channels()
+        self.target_channel_ids = self.load_target_channels()
 
     def load_target_channels(self):
-        self.TARGET_CHANNEL_IDS = self.get_config_data().get('target_channels', [])
+        config_data = self.get_config_data()
+        return config_data.get('target_channels', [])
 
     def save_target_channels(self):
         config_data = self.get_config_data()
-        config_data['target_channels'] = self.TARGET_CHANNEL_IDS
+        config_data['target_channels'] = self.target_channel_ids
         self.update_config_data(config_data)
 
     def get_config_data(self):
@@ -37,14 +38,12 @@ class ThreadMonitor(commands.Cog):
         content = message.content or ''
         content += ''.join(f' {attachment.url}' for attachment in message.attachments)
         embed_content = ''.join(self.format_embed(embed) for embed in message.embeds)
-        content += f"\n{embed_content}" if embed_content else ''
-        return f"{message.author.mention}:\n{content}\n" if content.strip() else None
+        return f"{message.author.mention}:\n{content}\n{embed_content}".strip()
 
     def format_embed(self, embed):
         embed_dict = embed.to_dict()
         if 'fields' in embed_dict:
-            fields_content = '\n'.join(f"{field['name']}: {field['value']}" for field in embed_dict['fields'])
-            return fields_content
+            return '\n'.join(f"{field['name']}: {field['value']}" for field in embed_dict['fields'])
         return ''
     
     @commands.slash_command(
@@ -59,14 +58,14 @@ class ThreadMonitor(commands.Cog):
         name='add',
         description='Add a channel to the thread monitor'
     )
-    async def add(self, ctx, channel: disnake.TextChannel):
+    async def add_channel(self, ctx, channel: disnake.TextChannel):
         if not await has_role_check(ctx):
             await ctx.send("You don't have permission to use this command.", ephemeral=True)
             return
 
         channel_id = channel.id
-        if channel_id not in self.TARGET_CHANNEL_IDS:
-            self.TARGET_CHANNEL_IDS.append(channel_id)
+        if channel_id not in self.target_channel_ids:
+            self.target_channel_ids.append(channel_id)
             self.save_target_channels()
             await ctx.send(f"Channel {channel.mention} added to the thread monitor.", ephemeral=True)
         else:
@@ -76,14 +75,14 @@ class ThreadMonitor(commands.Cog):
         name='remove',
         description='Remove a channel from the thread monitor'
     )
-    async def remove(self, ctx, channel: disnake.TextChannel):
+    async def remove_channel(self, ctx, channel: disnake.TextChannel):
         if not await has_role_check(ctx):
             await ctx.send("You don't have permission to use this command.", ephemeral=True)
             return
 
         channel_id = channel.id
-        if channel_id in self.TARGET_CHANNEL_IDS:
-            self.TARGET_CHANNEL_IDS.remove(channel_id)
+        if channel_id in self.target_channel_ids:
+            self.target_channel_ids.remove(channel_id)
             self.save_target_channels()
             await ctx.send(f"Channel {channel.mention} removed from the thread monitor.", ephemeral=True)
         else:
@@ -91,7 +90,7 @@ class ThreadMonitor(commands.Cog):
 
     @commands.Cog.listener()
     async def on_thread_create(self, thread):
-        if thread.parent_id in self.TARGET_CHANNEL_IDS:
+        if thread.parent_id in self.target_channel_ids:
             await asyncio.sleep(1.5)
             messages = await thread.history(limit=100).flatten()
             if not messages:
