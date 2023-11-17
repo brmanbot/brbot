@@ -2,24 +2,44 @@ import time
 from utils import bot
 from config import GUILD_IDS
 from disnake.ext import commands
+from disnake import Option, OptionType
+
 
 def setup(bot):
     @bot.slash_command(
         name="myreaction",
-        description="Retrieve a random video from a random green or red colour database.",
+        description=("Retrieve a random video from a specified or random "
+                     "green or red colour database."),
         guild_ids=GUILD_IDS,
+        options=[
+            Option(
+                name="colour",
+                description="Choose between green (good) or red (bad)",
+                type=OptionType.string,
+                required=False,
+                choices=["green", "red"]
+            )
+        ]
     )
-    async def myreaction(ctx):
+    async def myreaction(ctx, color: str = None):
         await ctx.response.defer()
 
-        assert bot.video_manager is not None, "video_manager is not initialized"
+        assert bot.video_manager is not None, \
+            "video_manager is not initialized"
 
         current_time = time.time()
 
-        available_videos = await bot.video_manager.get_available_videos_with_cooldown(["green", "red"], current_time, bot.cooldown)
+        color_choices = ["green", "red"] if color is None else [color]
+
+        available_videos = await bot.video_manager.get_available_videos_with_cooldown(
+            color_choices, current_time, bot.cooldown
+        )
 
         if not available_videos:
-            await ctx.followup.send("All green and red videos have been played or are under cooldown. Contact brman to fix.")
+            await ctx.followup.send(
+                "No available videos for the chosen color or all are under cooldown. "
+                "Contact brman to fix."
+            )
             return
 
         chosen_video = available_videos[0]
@@ -29,4 +49,4 @@ def setup(bot):
             chosen_video = "🏆 " + chosen_video
 
         await ctx.edit_original_message(content=f"{chosen_video}")
-        bot.video_manager.save_data() 
+        bot.video_manager.save_data()
