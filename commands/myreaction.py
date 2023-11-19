@@ -17,7 +17,7 @@ def setup(bot):
                 description="Choose between green (good) or red (bad)",
                 type=OptionType.string,
                 required=False,
-                choices=["green", "red"]
+                choices=["Green", "Red"]
             )
         ]
     )

@@ -5,3 +5,4 @@ videos.db
 video_data.json
 config_data.json
 change_short_url.py
+deletion_tasks.json
