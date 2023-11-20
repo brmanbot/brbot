@@ -4,7 +4,6 @@ from config import GUILD_IDS
 from disnake.ext import commands
 from disnake import Option, OptionType
 
-
 def setup(bot):
     @bot.slash_command(
         name="myreaction",
@@ -14,14 +13,14 @@ def setup(bot):
         options=[
             Option(
                 name="colour",
-                description="Choose between green (good) or red (bad)",
+                description="Choose between Green (good) or Red (bad)",
                 type=OptionType.string,
                 required=False,
-                choices=["green", "red"]
+                choices=["Green", "Red"]
             )
         ]
     )
-    async def myreaction(ctx, color: str = None):
+    async def myreaction(ctx, colour: str = None):
         await ctx.response.defer()
 
         assert bot.video_manager is not None, \
@@ -29,7 +28,9 @@ def setup(bot):
 
         current_time = time.time()
 
-        color_choices = ["green", "red"] if color is None else [color]
+        colour = colour.lower() if colour else None
+
+        color_choices = ["green", "red"] if colour is None else [colour]
 
         available_videos = await bot.video_manager.get_available_videos_with_cooldown(
             color_choices, current_time, bot.cooldown
