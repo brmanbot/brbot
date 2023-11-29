@@ -65,7 +65,8 @@ class AutoDelete(commands.Cog):
             while retry_attempts < max_retries:
                 try:
                     message = await channel.fetch_message(int(message_id))
-                    await message.delete()
+                    if not message.pinned:
+                        await message.delete()
                     break
                 except disnake.NotFound:
                     break
