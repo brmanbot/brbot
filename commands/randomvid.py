@@ -149,7 +149,7 @@ def setup(bot):
                            ])
         ]
     )
-    async def randomvid(ctx, colour: str = "yellow"):
+    async def randomvid(ctx, colour: str = "all"):
         assert bot.video_manager is not None, "video_manager is not initialized"
         
         await ctx.response.defer()
