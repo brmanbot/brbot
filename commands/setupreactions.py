@@ -109,8 +109,6 @@ def setup(bot):
         green_role = disnake.utils.get(guild.roles, id=GREEN_ROLE_ID)
         red_role = disnake.utils.get(guild.roles, id=RED_ROLE_ID)
 
-        initial_yellow_role_users_count = len([member for member in guild.members if yellow_role in member.roles])
-
         if emoji not in ALLOWED_EMOJIS:
             return
 
@@ -122,7 +120,11 @@ def setup(bot):
         elif emoji == "🤔":
             color = "yellow"
 
-        yellow_role_users = [member for member in guild.members if yellow_role in member.roles]
+        yellow_role_users = []
+        if color == "green" and yellow_role:
+            for member in guild.members:
+                if yellow_role in member.roles:
+                    yellow_role_users.append(member)
 
         played_videos = bot.video_manager.played_videos
         current_time = time.time()
@@ -143,6 +145,7 @@ def setup(bot):
         bot.video_manager.save_data()
 
         await asyncio.sleep(0)
+        yellow_role_users = [member for member in guild.members if yellow_role in member.roles]
 
         emoji_to_color_and_message = {
             "✅": (f"{user.mention} is {green_role.mention} {random_emojis[1]}\n"),
@@ -152,11 +155,10 @@ def setup(bot):
 
         user_message = emoji_to_color_and_message[emoji]
 
-        if color == "green":
-            if initial_yellow_role_users_count > 1:
-                user_message += f"Does that change your mind {yellow_role.mention} {random_emojis[0]}❓\n\n{chosen_video}"
-                message_in_target_channel_id = await send_message_and_add_reaction(target_channel, user_message)
-                reaction_message_ids.setdefault(payload.guild_id, []).append(message_in_target_channel_id)
-            else:
-                user_message += f"\n{chosen_video}"
-                await target_channel.send(user_message)
+        if yellow_role_users and color == "green":
+            user_message += f"Does that change your mind {yellow_role.mention} {random_emojis[0]}❓\n\n{chosen_video}"
+            message_in_target_channel_id = await send_message_and_add_reaction(target_channel, user_message)
+            reaction_message_ids.setdefault(payload.guild_id, []).append(message_in_target_channel_id)
+        else:
+            user_message += f"\n{chosen_video}"
+            await target_channel.send(user_message)
