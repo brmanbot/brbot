@@ -18,59 +18,60 @@ async def send_message_and_add_reaction(channel, message):
     await sent_message.add_reaction("✅")
     return sent_message.id
 
-# @bot.slash_command(
-#     name="setup_reaction_handler",
-#     description="Sets up the reaction listener for a message with ✅, ❌, and 🤔 reactions.",
-#     guild_ids=GUILD_IDS,
-#     options=[
-#         disnake.Option(
-#             "channel",
-#             "The channel where the message with reactions is located.",
-#             type=disnake.OptionType.channel,
-#             required=True
-#         ),
-#         disnake.Option(
-#             "message_id",
-#             "The ID of the message with reactions.",
-#             type=disnake.OptionType.string,
-#             required=True
-#         ),
-#         disnake.Option(
-#             "target_channel",
-#             "The channel where random videos should be sent.",
-#             type=disnake.OptionType.channel,
-#             required=True
-#         )
-#     ]
-# )
-# async def setup_reaction_handler(
-#     ctx,
-#     channel: disnake.TextChannel,
-#     message_id: str,
-#     target_channel: disnake.TextChannel
-# ):
-#     if ctx.author.id != ALLOWED_USER_ID:
-#         await ctx.send("You are not authorised to use this command.", ephemeral=True)
-#         return
-    
-#     await ctx.response.defer()
+# def setup(bot):
+#     @bot.slash_command(
+#         name="setup_reaction_handler",
+#         description="Sets up the reaction listener for a message with ✅, ❌, and 🤔 reactions.",
+#         guild_ids=GUILD_IDS,
+#         options=[
+#             disnake.Option(
+#                 "channel",
+#                 "The channel where the message with reactions is located.",
+#                 type=disnake.OptionType.channel,
+#                 required=True
+#             ),
+#             disnake.Option(
+#                 "message_id",
+#                 "The ID of the message with reactions.",
+#                 type=disnake.OptionType.string,
+#                 required=True
+#             ),
+#             disnake.Option(
+#                 "target_channel",
+#                 "The channel where random videos should be sent.",
+#                 type=disnake.OptionType.channel,
+#                 required=True
+#             )
+#         ]
+#     )
+#     async def setup_reaction_handler(
+#         ctx,
+#         channel: disnake.TextChannel,
+#         message_id: str,
+#         target_channel: disnake.TextChannel
+#     ):
+#         if ctx.author.id != ALLOWED_USER_ID:
+#             await ctx.send("You are not authorised to use this command.", ephemeral=True)
+#             return
+        
+#         await ctx.response.defer()
 
-#     message_id = int(message_id)
+#         message_id = int(message_id)
 
-#     try:
-#         message_with_reactions = await channel.fetch_message(message_id)
-#     except disnake.NotFound:
-#         await ctx.send("Invalid message ID. Please try again.", ephemeral=True)
-#         return
-    
-#     for reaction in ["✅", "❌", "🤔"]:
-#         await message_with_reactions.add_reaction(reaction)
+#         try:
+#             message_with_reactions = await channel.fetch_message(message_id)
+#         except disnake.NotFound:
+#             await ctx.send("Invalid message ID. Please try again.", ephemeral=True)
+#             return
+        
+#         for reaction in ["✅", "❌", "🤔"]:
+#             await message_with_reactions.add_reaction(reaction)
 
-#     setup_data["message_id"] = message_with_reactions.id
-#     setup_data["channel_id"] = channel.id
-#     setup_data["target_channel_id"] = target_channel.id
-#     store_setup_data(ctx.guild.id, message_with_reactions.id, channel.id, target_channel.id)
-#     await ctx.send("Reaction handler setup complete.", ephemeral=True)
+#         setup_data["message_id"] = message_with_reactions.id
+#         setup_data["channel_id"] = channel.id
+#         setup_data["target_channel_id"] = target_channel.id
+#         store_setup_data(ctx.guild.id, message_with_reactions.id, channel.id, target_channel.id)
+#         await ctx.send("Reaction handler setup complete.", ephemeral=True)
 
 reaction_message_ids = {}
 
@@ -155,10 +156,16 @@ def setup(bot):
 
         user_message = emoji_to_color_and_message[emoji]
 
-        if yellow_role_users and color == "green":
-            user_message += f"Does that change your mind {yellow_role.mention} {random_emojis[0]}❓\n\n{chosen_video}"
-            message_in_target_channel_id = await send_message_and_add_reaction(target_channel, user_message)
-            reaction_message_ids.setdefault(payload.guild_id, []).append(message_in_target_channel_id)
+        if color == "green":
+            yellow_role_users = [member for member in guild.members if yellow_role in member.roles and member.id != user.id]
+
+            if yellow_role_users:
+                user_message += f"Does that change your mind {yellow_role.mention} {random_emojis[0]}❓\n\n{chosen_video}"
+                message_in_target_channel_id = await send_message_and_add_reaction(target_channel, user_message)
+                reaction_message_ids.setdefault(payload.guild_id, []).append(message_in_target_channel_id)
+            else:
+                user_message += f"\n{chosen_video}"
+                await target_channel.send(user_message)
         else:
             user_message += f"\n{chosen_video}"
             await target_channel.send(user_message)
