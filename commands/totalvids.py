@@ -67,4 +67,3 @@ def setup(bot):
             return embed
         finally:
             await db.close()
-            

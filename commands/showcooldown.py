@@ -68,7 +68,7 @@ def setup(bot):
 
         color_labels = ['On Cooldown', 'Available']
         sizes = [on_cooldown, available_videos]
-        colors = ['#D62728', '#1F77B4']
+        colors = ['#A40000', '#4E9A06']
 
         wedges, texts, autotexts = plt.pie(sizes, labels=None, autopct='%1.1f%%', colors=colors, wedgeprops=dict(width=0.3), pctdistance=0.85, textprops={'fontsize': 24, 'color': 'white'})
 
@@ -79,7 +79,6 @@ def setup(bot):
         plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
         plt.savefig(IMAGE_PATH, transparent=True)
 
-        # Upload the Pie Chart
         async with aiohttp.ClientSession() as session:
             with open(IMAGE_PATH, 'rb') as f:
                 async with session.post('https://0x0.st', data={'file': f}) as resp:
@@ -91,7 +90,6 @@ def setup(bot):
 
         os.remove(IMAGE_PATH)
 
-        # Embed the Pie Chart in the Bot's Response
         embed_title = f"Current Cooldown: {cooldown_for_title}"
         embed = disnake.Embed(title=embed_title, color=disnake.Color.blue())
         embed.set_image(url=img_url)
