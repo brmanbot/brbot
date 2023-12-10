@@ -23,13 +23,10 @@ def setup(bot):
     async def myreaction(ctx, colour: str = None):
         await ctx.response.defer()
 
-        assert bot.video_manager is not None, \
-            "video_manager is not initialized"
+        assert bot.video_manager is not None, "video_manager is not initialized"
 
         current_time = time.time()
-
         colour = colour.lower() if colour else None
-
         color_choices = ["green", "red"] if colour is None else [colour]
 
         available_videos = await bot.video_manager.get_available_videos_with_cooldown(

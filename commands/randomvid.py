@@ -15,11 +15,14 @@ class ConfirmView(disnake.ui.View):
     async def confirm_button(self, _, interaction):
         deleted_by_user = interaction.user
 
-        video_info = await self.original_view.bot.video_manager.fetch_video_info(self.original_view.video_url)
+        video_info = await self.original_view.bot.video_manager.fetch_video_info(
+            self.original_view.video_url)
         if video_info is not None:
             video_name, _, _ = video_info
-            await self.original_view.bot.video_manager.remove_video(self.original_view.video_url, 'url', MOD_LOG, deleted_by_user)
-            await interaction.response.send_message(f"Deleted `{video_name}` from the database.")
+            await self.original_view.bot.video_manager.remove_video(
+                self.original_view.video_url, 'url', MOD_LOG, deleted_by_user)
+            await interaction.response.send_message(
+                f"Deleted `{video_name}` from the database.")
             for item in self.original_view.children:
                 if item.custom_id in ["delete_video", "info_video"]:
                     item.disabled = True
@@ -61,7 +64,7 @@ class VideoActionsView(disnake.ui.View):
             del bot.active_videos[message.id]
 
     @disnake.ui.button(label="Re-roll", style=disnake.ButtonStyle.primary,
-                    emoji="🔀", custom_id="reroll_video", row=0)
+                       emoji="🔀", custom_id="reroll_video", row=0)
     async def reroll_button(self, button, interaction):
         button.disabled = True
         await interaction.response.edit_message(view=self)
@@ -92,7 +95,7 @@ class VideoActionsView(disnake.ui.View):
             await interaction.followup.send("No available videos to re-roll.", ephemeral=True)
 
     @disnake.ui.button(label="Info", style=disnake.ButtonStyle.primary,
-                        emoji="ℹ️", custom_id="info_video", row=0)
+                       emoji="ℹ️", custom_id="info_video", row=0)
     async def info_button(self, button, interaction):
         await interaction.response.defer()
         video_url = self.video_url
@@ -114,8 +117,8 @@ class VideoActionsView(disnake.ui.View):
             button.disabled = True
             await interaction.message.edit(view=self)
 
-
-    @disnake.ui.button(label="Delete", style=disnake.ButtonStyle.danger, emoji="🗑️", custom_id="delete_video", row=0)
+    @disnake.ui.button(label="Delete", style=disnake.ButtonStyle.danger, emoji="🗑️",
+                       custom_id="delete_video", row=0)
     async def delete_button(self, button, interaction):
         if not await has_role_check(interaction):
             await interaction.response.send_message("You don't have the permissions to delete this video.", ephemeral=True)

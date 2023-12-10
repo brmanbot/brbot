@@ -1,14 +1,14 @@
 import disnake
-from disnake.ext import commands
-from config import GUILD_IDS, get_cooldown
-from utils import bot
 import time
 import matplotlib.pyplot as plt
 import os
 import aiohttp
 import matplotlib.patheffects as pe
+from config import GUILD_IDS, get_cooldown
+from utils import bot
 
 IMAGE_PATH = 'cooldown_pie_chart.png'
+
 
 def format_cooldown(cooldown_value):
     days, remainder = divmod(cooldown_value, 86400)
@@ -27,6 +27,7 @@ def format_cooldown(cooldown_value):
 
     return ", ".join(formatted_cooldown)
 
+
 def format_cooldown_for_title(cooldown_value):
     days, remainder = divmod(cooldown_value, 86400)
     hours, remainder = divmod(remainder, 3600)
@@ -40,6 +41,7 @@ def format_cooldown_for_title(cooldown_value):
         return f"{minutes}m"
     else:
         return f"{seconds}s"
+
 
 def setup(bot):
     @bot.slash_command(
@@ -70,13 +72,31 @@ def setup(bot):
         sizes = [on_cooldown, available_videos]
         colors = ['#A40000', '#4E9A06']
 
-        wedges, texts, autotexts = plt.pie(sizes, labels=None, autopct='%1.1f%%', colors=colors, wedgeprops=dict(width=0.3), pctdistance=0.85, textprops={'fontsize': 24, 'color': 'white'})
+        wedges, texts, autotexts = plt.pie(
+            sizes,
+            labels=None,
+            autopct='%1.1f%%',
+            colors=colors,
+            wedgeprops=dict(width=0.3),
+            pctdistance=0.85,
+            textprops={'fontsize': 24, 'color': 'white'}
+        )
 
-        plt.setp(autotexts, path_effects=[pe.withStroke(linewidth=3, foreground='black')])
+        plt.setp(
+            autotexts,
+            path_effects=[pe.withStroke(linewidth=3, foreground='black')]
+        )
 
-        plt.legend([f"{label} {size}" for label, size in zip(color_labels, sizes)], loc="upper left", bbox_to_anchor=(0, 1), fontsize=14)
+        plt.legend(
+            [f"{label} {size}" for label, size in zip(color_labels, sizes)],
+            loc="upper left",
+            bbox_to_anchor=(0, 1),
+            fontsize=14
+        )
 
-        plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
+        plt.subplots_adjust(
+            left=0, bottom=0, right=1, top=1, wspace=0, hspace=0
+        )
         plt.savefig(IMAGE_PATH, transparent=True)
 
         async with aiohttp.ClientSession() as session:

@@ -9,6 +9,7 @@ from config import GUILD_IDS
 
 IMAGE_PATH = 'pie_chart.png'
 
+
 def setup(bot):
     @bot.slash_command(
         name="totalvids",
@@ -18,7 +19,6 @@ def setup(bot):
     async def totalvids(ctx):
         embed = await create_total_videos_embed()
         await ctx.response.send_message(embed=embed)
-
 
     async def create_total_videos_embed():
         db = await aiosqlite.connect("videos.db")
@@ -34,17 +34,35 @@ def setup(bot):
 
             total_videos = sum(color_counts.values())
 
-            fig, ax = plt.subplots(figsize=(10,10))
+            fig, ax = plt.subplots(figsize=(10, 10))
             fig.patch.set_visible(False)
             ax.axis('off')
 
-            wedges, texts, autotexts = plt.pie(color_counts.values(), labels=None, autopct='%1.1f%%', colors=pastel_colors, wedgeprops=dict(width=0.3), pctdistance=0.85, textprops={'fontsize': 24, 'color': 'white'})
+            wedges, texts, autotexts = plt.pie(
+                color_counts.values(),
+                labels=None,
+                autopct='%1.1f%%',
+                colors=pastel_colors,
+                wedgeprops=dict(width=0.3),
+                pctdistance=0.85,
+                textprops={'fontsize': 24, 'color': 'white'}
+            )
 
-            plt.setp(autotexts, path_effects=[pe.withStroke(linewidth=3, foreground='black')])
+            plt.setp(
+                autotexts,
+                path_effects=[pe.withStroke(linewidth=3, foreground='black')]
+            )
 
-            plt.legend([f"{color.capitalize()} {count}" for color, count in color_counts.items()], loc="upper left", bbox_to_anchor=(0,1), fontsize=14)
+            plt.legend(
+                [f"{color.capitalize()} {count}" for color, count in color_counts.items()],
+                loc="upper left",
+                bbox_to_anchor=(0, 1),
+                fontsize=14
+            )
 
-            plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
+            plt.subplots_adjust(
+                left=0, bottom=0, right=1, top=1, wspace=0, hspace=0
+            )
             plt.savefig(IMAGE_PATH, transparent=True)
 
             async with aiohttp.ClientSession() as session:
@@ -61,7 +79,6 @@ def setup(bot):
                 title=f"Total videos in the database ({total_videos})",
                 color=disnake.Color.blurple()
             )
-
             embed.set_image(url=img_url)
             
             return embed

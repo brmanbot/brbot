@@ -1,17 +1,9 @@
 import asyncio
 import time
 import disnake
-
-from config import (
-    ALLOWED_USER_ID,
-    GREEN_ROLE_ID,
-    GUILD_IDS,
-    RED_ROLE_ID,
-    YELLOW_ROLE_ID
-)
+from config import ALLOWED_USER_ID, GREEN_ROLE_ID, GUILD_IDS, RED_ROLE_ID, YELLOW_ROLE_ID
 from database import fisher_yates_shuffle
 from utils import bot, load_setup_data, store_setup_data, load_role_timestamps, setup_data
-
 
 async def send_message_and_add_reaction(channel, message):
     sent_message = await channel.send(message)
@@ -74,7 +66,6 @@ async def send_message_and_add_reaction(channel, message):
 #         await ctx.send("Reaction handler setup complete.", ephemeral=True)
 
 reaction_message_ids = {}
-
 ALLOWED_EMOJIS = {"✅", "❌", "🤔"}
 
 def setup(bot):

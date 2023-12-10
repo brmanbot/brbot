@@ -1,9 +1,10 @@
 import json
 import asyncio
-from disnake.ext import commands
 import disnake
+from disnake.ext import commands
 from config import GUILD_IDS
 from utils import has_role_check
+
 
 class ThreadMonitor(commands.Cog):
     def __init__(self, bot):
@@ -36,16 +37,23 @@ class ThreadMonitor(commands.Cog):
 
     async def format_message(self, message):
         content = message.content or ''
-        content += ''.join(f' {attachment.url}' for attachment in message.attachments)
-        embed_content = ''.join(self.format_embed(embed) for embed in message.embeds)
+        content += ''.join(
+            f' {attachment.url}' for attachment in message.attachments
+        )
+        embed_content = ''.join(
+            self.format_embed(embed) for embed in message.embeds
+        )
         return f"{message.author.mention}:\n{content}\n{embed_content}".strip()
 
     def format_embed(self, embed):
         embed_dict = embed.to_dict()
         if 'fields' in embed_dict:
-            return '\n'.join(f"{field['name']}: {field['value']}" for field in embed_dict['fields'])
+            return '\n'.join(
+                f"{field['name']}: {field['value']}"
+                for field in embed_dict['fields']
+            )
         return ''
-    
+
     @commands.slash_command(
         name='threadmonitor',
         description='Manage channels for thread monitoring',
@@ -60,16 +68,25 @@ class ThreadMonitor(commands.Cog):
     )
     async def add_channel(self, ctx, channel: disnake.TextChannel):
         if not await has_role_check(ctx):
-            await ctx.send("You don't have permission to use this command.", ephemeral=True)
+            await ctx.send(
+                "You don't have permission to use this command.",
+                ephemeral=True
+            )
             return
 
         channel_id = channel.id
         if channel_id not in self.target_channel_ids:
             self.target_channel_ids.append(channel_id)
             self.save_target_channels()
-            await ctx.send(f"Channel {channel.mention} added to the thread monitor.", ephemeral=True)
+            await ctx.send(
+                f"Channel {channel.mention} added to the thread monitor.",
+                ephemeral=True
+            )
         else:
-            await ctx.send(f"Channel {channel.mention} is already in the thread monitor.", ephemeral=True)
+            await ctx.send(
+                f"Channel {channel.mention} is already in the thread monitor.",
+                ephemeral=True
+            )
 
     @threadmonitor.sub_command(
         name='remove',
@@ -77,16 +94,25 @@ class ThreadMonitor(commands.Cog):
     )
     async def remove_channel(self, ctx, channel: disnake.TextChannel):
         if not await has_role_check(ctx):
-            await ctx.send("You don't have permission to use this command.", ephemeral=True)
+            await ctx.send(
+                "You don't have permission to use this command.",
+                ephemeral=True
+            )
             return
 
         channel_id = channel.id
         if channel_id in self.target_channel_ids:
             self.target_channel_ids.remove(channel_id)
             self.save_target_channels()
-            await ctx.send(f"Channel {channel.mention} removed from the thread monitor.", ephemeral=True)
+            await ctx.send(
+                f"Channel {channel.mention} removed from the thread monitor.",
+                ephemeral=True
+            )
         else:
-            await ctx.send(f"Channel {channel.mention} is not currently in the thread monitor.", ephemeral=True)
+            await ctx.send(
+                f"Channel {channel.mention} is not currently in the thread monitor.",
+                ephemeral=True
+            )
 
     @commands.Cog.listener()
     async def on_thread_create(self, thread):
@@ -101,7 +127,9 @@ class ThreadMonitor(commands.Cog):
             for message in messages[::-1]:
                 formatted_message = await self.format_message(message)
                 if formatted_message:
-                    repost_messages.extend([formatted_message[i:i+2000] for i in range(0, len(formatted_message), 2000)])
+                    repost_messages.extend(
+                        [formatted_message[i:i+2000] for i in range(0, len(formatted_message), 2000)]
+                    )
 
             await thread.delete()
 
@@ -114,6 +142,7 @@ class ThreadMonitor(commands.Cog):
                         print(f"Failed to send message: {e}")
             else:
                 print(f"Could not find the parent channel with ID {thread.parent_id}")
+
 
 def setup(bot):
     bot.add_cog(ThreadMonitor(bot))

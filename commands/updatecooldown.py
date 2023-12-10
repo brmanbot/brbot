@@ -1,5 +1,4 @@
 import disnake
-from disnake.ext import commands
 from config import GUILD_IDS, ALLOWED_USER_ID, update_cooldown
 from utils import bot
 
@@ -9,12 +8,23 @@ def setup(bot):
         description="Update the cooldown.",
         guild_ids=GUILD_IDS,
         options=[
-            disnake.Option("value", "The value to set the cooldown to.", type=disnake.OptionType.integer, required=True),
-            disnake.Option("unit", "The unit of time for the cooldown.", type=disnake.OptionType.string, required=True, choices=[
-                disnake.OptionChoice("Days", "days"),
-                disnake.OptionChoice("Hours", "hours"),
-                disnake.OptionChoice("Seconds", "seconds")
-            ])
+            disnake.Option(
+                "value",
+                "The value to set the cooldown to.",
+                type=disnake.OptionType.integer,
+                required=True
+            ),
+            disnake.Option(
+                "unit",
+                "The unit of time for the cooldown.",
+                type=disnake.OptionType.string,
+                required=True,
+                choices=[
+                    disnake.OptionChoice("Days", "days"),
+                    disnake.OptionChoice("Hours", "hours"),
+                    disnake.OptionChoice("Seconds", "seconds")
+                ]
+            )
         ]
     )
     async def updatecooldown(ctx, value: int, unit: str):

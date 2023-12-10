@@ -10,7 +10,13 @@ def setup(bot):
         description="Retrieve the URL of a saved video by name. Use /vids to see a list of all available videos.",
         guild_ids=GUILD_IDS,
         options=[
-            disnake.Option("name", "The name of the video to retrieve.", type=disnake.OptionType.string, required=True, autocomplete=True)
+            disnake.Option(
+                "name",
+                "The name of the video to retrieve.",
+                type=disnake.OptionType.string,
+                required=True,
+                autocomplete=True
+            )
         ]
     )
     async def getvid(ctx, name: str):
