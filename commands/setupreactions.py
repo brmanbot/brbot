@@ -140,9 +140,9 @@ def setup(bot):
         yellow_role_users = [member for member in guild.members if yellow_role in member.roles]
 
         emoji_to_color_and_message = {
-            "✅": (f"{user.mention} is {green_role.mention} {random_emojis[1]}\n"),
-            "❌": (f"{user.mention} is {red_role.mention} {random_emojis[2]}\n"),
-            "🤔": (f"{user.mention} is {yellow_role.mention} {random_emojis[3]}\n")
+            "✅": (f"{user.mention} is {green_role.mention} {random_emojis[1]}"),
+            "❌": (f"{user.mention} is {red_role.mention} {random_emojis[2]}"),
+            "🤔": (f"{user.mention} is {yellow_role.mention} {random_emojis[3]}")
         }
 
         user_message = emoji_to_color_and_message[emoji]
@@ -151,12 +151,12 @@ def setup(bot):
             yellow_role_users = [member for member in guild.members if yellow_role in member.roles and member.id != user.id]
 
             if yellow_role_users:
-                user_message += f"Does that change your mind {yellow_role.mention} {random_emojis[0]}❓\n\n{chosen_video}"
+                user_message += f"\nDoes that change your mind {yellow_role.mention} {random_emojis[0]}❓[:]({chosen_video}) "
                 message_in_target_channel_id = await send_message_and_add_reaction(target_channel, user_message)
                 reaction_message_ids.setdefault(payload.guild_id, []).append(message_in_target_channel_id)
             else:
-                user_message += f"\n{chosen_video}"
+                user_message += f"[:]({chosen_video})"
                 await target_channel.send(user_message)
         else:
-            user_message += f"\n{chosen_video}"
+            user_message += f"[:]({chosen_video})"
             await target_channel.send(user_message)
