@@ -33,13 +33,8 @@ def setup(bot):
         if response.status_code == 200:
             json_response = response.json()
             if json_response.get("success") and "data" in json_response and "download" in json_response["data"]:
-                video_qualities = ["NoWM1080", "NoWM720", "NoWM"]
-                video_link = None
-                for quality in video_qualities:
-                    if quality in json_response["data"]["download"]["video"]:
-                        video_link = json_response["data"]["download"]["video"][quality]["url"]
-                        break
-
+                video_link = json_response["data"]["download"]["video"].get("NoWM", {}).get("url")
+                
                 if video_link:
                     shortened_link = await shorten_url(video_link)
                     if shortened_link:
@@ -47,7 +42,7 @@ def setup(bot):
                     else:
                         await ctx.edit_original_response(content="Failed to shorten the video link.")
                 else:
-                    await ctx.edit_original_response(content="No suitable video quality found.")
+                    await ctx.edit_original_response(content="No 'No Watermark' video quality found.")
             else:
                 await ctx.edit_original_response(content="Failed to get video link from the response.")
         else:
