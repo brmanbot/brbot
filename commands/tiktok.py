@@ -61,16 +61,24 @@ def setup(bot):
                     if video_data:
                         upload_channel = bot.get_channel(int(TIKTOK_ARCHIVE_CHANNEL))
                         if upload_channel:
-                            video_message = await upload_channel.send(
-                                file=disnake.File(fp=video_data, filename="tiktok_video.mp4")
-                            )
-                            video_media_url = video_message.attachments[0].url
-                            shortened_url = await shorten_url(video_media_url)
-                            if shortened_url:
-                                user_mention = ctx.author.mention
-                                await ctx.channel.send(f"{user_mention} used /tiktok\n{shortened_url}")
-                            else:
-                                await ctx.channel.send(f"Failed to shorten the URL. Original link: {original_url}", ephemeral=True)
+                            try:
+                                video_message = await upload_channel.send(
+                                    file=disnake.File(fp=video_data, filename="tiktok_video.mp4")
+                                )
+                                video_media_url = video_message.attachments[0].url
+                                shortened_url = await shorten_url(video_media_url)
+                                if shortened_url:
+                                    user_mention = ctx.author.mention
+                                    await ctx.channel.send(f"{user_mention} used /tiktok\n{shortened_url}")
+                                else:
+                                    await ctx.channel.send(f"Failed to shorten the URL. Original link: {original_url}", ephemeral=True)
+                            except disnake.HTTPException as e:
+                                if e.status == 413:
+                                    await ctx.send("The video file is too large to upload.", ephemeral=True)
+                                else:
+                                    await ctx.send(f"An error occurred while uploading the video: {e}", ephemeral=True)
+                            except Exception as e:
+                                await ctx.send(f"An unexpected error occurred: {e}", ephemeral=True)
                         else:
                             await ctx.channel.send("Invalid upload channel ID.", ephemeral=True)
                     else:
