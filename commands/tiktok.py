@@ -1,7 +1,9 @@
 import disnake
 from disnake.ext import commands
 import aiohttp
-from urllib.parse import urlparse
+import io
+from utils import shorten_url
+from private_config import TIKTOK_ARCHIVE_CHANNEL
 
 async def resolve_short_url(url):
     async with aiohttp.ClientSession() as session:
@@ -9,27 +11,28 @@ async def resolve_short_url(url):
             return str(response.url)
 
 async def fetch_tiktok_content(session, url):
-    async with session.post("https://api.tik.fail/api/grab", headers={"User-Agent": "MyTikTokBot"}, data={"url": url}) as response:
+    async with session.post(
+        "https://api.tik.fail/api/grab",
+        headers={"User-Agent": "MyTikTokBot"},
+        data={"url": url}
+    ) as response:
         if response.status == 200:
             return await response.json()
         else:
             return None
 
-def is_short_url(url):
-    return url.startswith("https://vm.tiktok.com/") or url.startswith("http://vm.tiktok.com/")
-
-def simplify_url(url, original_url):
-    if is_short_url(original_url):
-        parsed_url = urlparse(original_url)
-        return parsed_url.netloc + parsed_url.path
-    else:
-        parsed_url = urlparse(url)
-        return parsed_url.netloc + parsed_url.path
+async def download_video(video_url):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(video_url) as response:
+            if response.status == 200:
+                return io.BytesIO(await response.read())
+            else:
+                return None
 
 def setup(bot):
     @bot.slash_command(
         name="tiktok",
-        description="Provide links to TikTok video or gallery images.",
+        description="Archive and process TikTok's for easy viewing",
         options=[
             disnake.Option(
                 "url",
@@ -40,34 +43,37 @@ def setup(bot):
         ]
     )
     async def downloadtiktok(ctx, url: str):
-        await ctx.response.defer()
+        original_url = url.split(": ", 1)[1] if ": " in url else url
+        await ctx.send("Processing your request...", ephemeral=True)
 
-        original_url = url
-        if is_short_url(url):
-            resolved_url = await resolve_short_url(url)
-        else:
-            resolved_url = url
-
-        simplified_url = simplify_url(resolved_url, original_url)
+        resolved_url = await resolve_short_url(original_url) if original_url.startswith("https://vm.tiktok.com/") else original_url
 
         async with aiohttp.ClientSession() as session:
             tiktok_response = await fetch_tiktok_content(session, resolved_url)
             if tiktok_response and tiktok_response.get("success"):
-                # Handle gallery (list of image URLs)
                 if isinstance(tiktok_response["data"].get("download"), list):
                     image_links = tiktok_response["data"]["download"]
                     formatted_links = [f"[Image {index + 1}]({link})" for index, link in enumerate(image_links)]
-                    await ctx.edit_original_response(content="\n".join(formatted_links))
-                # Handle video
-                elif "video" in tiktok_response["data"].get("download", {}):
-                    video_link = tiktok_response["data"]["download"]["video"].get("NoWM", {}).get("url")
-                    if video_link:
-                        await ctx.edit_original_response(content=f"[{simplified_url}]({video_link})")
-                    else:
-                        await ctx.edit_original_response(content="No video found.")
+                    await ctx.channel.send("\n".join(formatted_links))
                 else:
-                    unsupported_content_message = f"Unsupported TikTok content. Here's the original link: {original_url}"
-                    await ctx.edit_original_response(content=unsupported_content_message)
+                    video_url = tiktok_response["data"]["download"]["video"].get("NoWM", {}).get("url")
+                    video_data = await download_video(video_url)
+                    if video_data:
+                        upload_channel = bot.get_channel(int(TIKTOK_ARCHIVE_CHANNEL))
+                        if upload_channel:
+                            video_message = await upload_channel.send(
+                                file=disnake.File(fp=video_data, filename="tiktok_video.mp4")
+                            )
+                            video_media_url = video_message.attachments[0].url
+                            shortened_url = await shorten_url(video_media_url)
+                            if shortened_url:
+                                user_mention = ctx.author.mention
+                                await ctx.channel.send(f"{user_mention} used /tiktok\n{shortened_url}")
+                            else:
+                                await ctx.channel.send(f"Failed to shorten the URL. Original link: {original_url}", ephemeral=True)
+                        else:
+                            await ctx.channel.send("Invalid upload channel ID.", ephemeral=True)
+                    else:
+                        await ctx.channel.send(f"Failed to download the video. Original link: {original_url}", ephemeral=True)
             else:
-                failure_message = f"Failed to fetch TikTok content. Here's the original link: {original_url}"
-                await ctx.edit_original_response(content=failure_message)
+                await ctx.followup.send(f"Failed to fetch TikTok content. Here's the original link: {original_url}", ephemeral=True)
