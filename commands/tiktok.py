@@ -1,6 +1,7 @@
 import disnake
 from disnake.ext import commands
 import aiohttp
+from urllib.parse import urlparse
 
 async def resolve_short_url(url):
     async with aiohttp.ClientSession() as session:
@@ -13,6 +14,17 @@ async def fetch_tiktok_content(session, url):
             return await response.json()
         else:
             return None
+
+def is_short_url(url):
+    return url.startswith("https://vm.tiktok.com/") or url.startswith("http://vm.tiktok.com/")
+
+def simplify_url(url, original_url):
+    if is_short_url(original_url):
+        parsed_url = urlparse(original_url)
+        return parsed_url.netloc + parsed_url.path
+    else:
+        parsed_url = urlparse(url)
+        return parsed_url.netloc + parsed_url.path
 
 def setup(bot):
     @bot.slash_command(
@@ -30,10 +42,13 @@ def setup(bot):
     async def downloadtiktok(ctx, url: str):
         await ctx.response.defer()
 
-        if url.startswith("https://vm.tiktok.com/") or url.startswith("http://vm.tiktok.com/"):
+        original_url = url
+        if is_short_url(url):
             resolved_url = await resolve_short_url(url)
         else:
             resolved_url = url
+
+        simplified_url = simplify_url(resolved_url, original_url)
 
         async with aiohttp.ClientSession() as session:
             tiktok_response = await fetch_tiktok_content(session, resolved_url)
@@ -47,10 +62,12 @@ def setup(bot):
                 elif "video" in tiktok_response["data"].get("download", {}):
                     video_link = tiktok_response["data"]["download"]["video"].get("NoWM", {}).get("url")
                     if video_link:
-                        await ctx.edit_original_response(content=f"[Video]({video_link})")
+                        await ctx.edit_original_response(content=f"[{simplified_url}]({video_link})")
                     else:
                         await ctx.edit_original_response(content="No video found.")
                 else:
-                    await ctx.edit_original_response(content="Unsupported TikTok content.")
+                    unsupported_content_message = f"Unsupported TikTok content. Here's the original link: {original_url}"
+                    await ctx.edit_original_response(content=unsupported_content_message)
             else:
-                await ctx.edit_original_response(content="Failed to fetch TikTok content.")
+                failure_message = f"Failed to fetch TikTok content. Here's the original link: {original_url}"
+                await ctx.edit_original_response(content=failure_message)
