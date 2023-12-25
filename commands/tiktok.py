@@ -2,6 +2,7 @@ import disnake
 from disnake.ext import commands
 import aiohttp
 import io
+import re
 
 async def resolve_short_url(url):
     async with aiohttp.ClientSession() as session:
@@ -26,6 +27,10 @@ async def download_video(video_url):
                 return io.BytesIO(await response.read())
             else:
                 return None
+            
+def get_video_id_from_url(url):
+    match = re.search(r'/video/(\d+)', url)
+    return match.group(1) if match else None
 
 def setup(bot):
     @bot.slash_command(
@@ -61,16 +66,19 @@ def setup(bot):
             async with aiohttp.ClientSession() as session:
                 tiktok_response = await fetch_tiktok_content(session, resolved_url)
                 if tiktok_response and tiktok_response.get("success"):
+                    author_id = tiktok_response["data"]["metadata"]["AccountUserName"]
+                    video_id = get_video_id_from_url(tiktok_response["data"]["metadata"]["VideoURL"])
                     video_url = tiktok_response["data"]["download"]["video"].get("NoWM", {}).get("url")
                     video_data = await download_video(video_url)
                     if video_data:
                         try:
+                            file_name = f"{author_id}_{video_id}.mp4"
                             if first_message:
                                 message_content = f"{ctx.author.mention} used /tiktok"
                                 first_message = False
                             else:
                                 message_content = None
-                            file = disnake.File(fp=video_data, filename="tiktok_video.mp4")
+                            file = disnake.File(fp=video_data, filename=file_name)
                             await ctx.channel.send(content=message_content, file=file)
                         except disnake.HTTPException as e:
                             if e.status == 413:
