@@ -35,7 +35,7 @@ def get_video_id_from_url(url):
 def setup(bot):
     @bot.slash_command(
         name="tiktok",
-        description="Download and share multiple TikTok videos directly in the channel",
+        description="Process TikTok videos for easy viewing",
         options=[
             disnake.Option(
                 "url1",
