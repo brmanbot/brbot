@@ -3,10 +3,19 @@ from disnake.ext import commands
 from instagrapi import Client
 import aiohttp
 import io
+from private_config import INSTAGRAM_PASSWORD, INSTAGRAM_USERNAME
 
-# Initialize instagrapi Client and aiohttp ClientSession globally
 ig_client = Client()
 http_session = aiohttp.ClientSession()
+
+@commands.Cog.listener()
+async def on_ready():
+    try:
+        ig_client.login(INSTAGRAM_USERNAME, INSTAGRAM_PASSWORD)
+        print("Logged in to Instagram successfully!")
+    except Exception as e:
+        print(f"Failed to log in to Instagram: {e}")
+
 
 async def download_media_to_memory(url):
     async with http_session.get(url) as response:
