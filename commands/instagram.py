@@ -8,11 +8,12 @@ ig_client = Client()
 http_session = aiohttp.ClientSession()
 
 async def download_media_to_memory(url):
-    async with http_session.get(url) as response:
-        if response.status == 200:
-            return io.BytesIO(await response.read())
-        else:
-            return None
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            if response.status == 200:
+                return io.BytesIO(await response.read())
+            else:
+                return None
 
 def setup(bot):
     @bot.slash_command(
@@ -59,9 +60,9 @@ def setup(bot):
                     video_data = await download_media_to_memory(str(video_url))
                     if video_data:
                         try:
-                            file_name = f"{reel_info.user.username}_{reel_info.pk}"
+                            file_name = f"{reel_info.user.username}_{reel_info.pk}.mp4"
                             if first_message:
-                                message_content = f"{ctx.author.mention}: {caption}" if caption else f"{ctx.author.mention} used /instagramreel"
+                                message_content = f"{ctx.author.mention}: {caption}" if caption else f"{ctx.author.mention} used /insta"
                                 first_message = False
                             else:
                                 message_content = None
