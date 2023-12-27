@@ -63,7 +63,7 @@ def setup(bot):
 
             try:
                 media_pk = ig_client.media_pk_from_url(original_url)
-                reel_info = ig_client.media_info_gql(media_pk)
+                reel_info = ig_client.media_info_v1(media_pk)
                 if reel_info and reel_info.media_type == 2 and reel_info.product_type == 'clips':
                     video_url = getattr(reel_info, 'video_url', None)
                     if video_url:
