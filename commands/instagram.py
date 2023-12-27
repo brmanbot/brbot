@@ -5,17 +5,25 @@ import aiohttp
 import io
 from private_config import INSTAGRAM_PASSWORD, INSTAGRAM_USERNAME
 
-ig_client = Client()
 http_session = aiohttp.ClientSession()
 
-@commands.Cog.listener()
-async def on_ready():
+ig_client = Client()
+ig_client.delay_range = [1, 3]
+
+def setup_instagram_client():
     try:
-        ig_client.login(INSTAGRAM_USERNAME, INSTAGRAM_PASSWORD)
-        print("Logged in to Instagram successfully!")
+        session_loaded = ig_client.load_settings("session.json")
+        if session_loaded:
+            ig_client.login(INSTAGRAM_USERNAME, INSTAGRAM_PASSWORD)
+        else:
+            ig_client.login(INSTAGRAM_USERNAME, INSTAGRAM_PASSWORD)
+            ig_client.dump_settings("session.json")
     except Exception as e:
         print(f"Failed to log in to Instagram: {e}")
 
+@commands.Cog.listener()
+async def on_ready():
+    setup_instagram_client()
 
 async def download_media_to_memory(url):
     async with http_session.get(url) as response:
