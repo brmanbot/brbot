@@ -1,36 +1,9 @@
 import disnake
 from disnake.ext import commands
-from instagrapi import Client
-import aiohttp
+import requests
 import io
-from private_config import INSTAGRAM_PASSWORD, INSTAGRAM_USERNAME
-
-http_session = aiohttp.ClientSession()
-
-ig_client = Client()
-ig_client.delay_range = [1, 3]
-
-def setup_instagram_client():
-    try:
-        session_loaded = ig_client.load_settings("session.json")
-        if session_loaded:
-            ig_client.login(INSTAGRAM_USERNAME, INSTAGRAM_PASSWORD)
-        else:
-            ig_client.login(INSTAGRAM_USERNAME, INSTAGRAM_PASSWORD)
-            ig_client.dump_settings("session.json")
-    except Exception as e:
-        print(f"Failed to log in to Instagram: {e}")
-
-@commands.Cog.listener()
-async def on_ready():
-    setup_instagram_client()
-
-async def download_media_to_memory(url):
-    async with http_session.get(url) as response:
-        if response.status == 200:
-            return io.BytesIO(await response.read())
-        else:
-            return None
+import re
+from private_config import RAPID_API_KEY
 
 def setup(bot):
     @bot.slash_command(
@@ -38,58 +11,70 @@ def setup(bot):
         description="Process Instagram Reels for easy viewing.",
         options=[
             disnake.Option(
-                "url1",
-                "First Instagram Reel.",
+                name="url1",
+                description="First Instagram Reel URL.",
                 type=disnake.OptionType.string,
                 required=True
             ),
             disnake.Option(
-                "caption",
-                "Replace the `@user used /insta` message with your own.",
+                name="caption",
+                description="Replace the `@user used /insta` message with your own.",
                 type=disnake.OptionType.string,
                 required=False
             )
         ] + [
             disnake.Option(
-                f"url{i}",
-                f"Instagram Reel #{i}.",
+                name=f"url{i}",
+                description=f"Reel #{i}.",
                 type=disnake.OptionType.string,
                 required=False
             ) for i in range(2, 11)
         ]
     )
-    async def downloadinstagramreel(ctx, url1, caption=None, **urls):
+    async def downloadreel(ctx, url1, caption=None, **urls):
         await ctx.send("Processing your request...", ephemeral=True)
         first_message = True
 
         urls = {'url1': url1, **urls}
 
         for url_key in sorted(urls.keys()):
-            original_url = urls[url_key]
-            if not original_url:
+            url = urls[url_key]
+            if not url:
                 continue
 
-            try:
-                media_pk = ig_client.media_pk_from_url(original_url)
-                reel_info = ig_client.media_info_v1(media_pk)
-                if reel_info and reel_info.media_type == 2 and reel_info.product_type == 'clips':
-                    video_url = getattr(reel_info, 'video_url', None)
-                    if video_url:
-                        video_data = await download_media_to_memory(str(video_url))
-                        if video_data:
-                            file_name = f"{reel_info.user.username}_{reel_info.pk}.mp4"
+            if not re.match(r'https?://www\.instagram\.com/(p|reel)/[a-zA-Z0-9-_]+', url):
+                await ctx.send(f"Invalid Instagram URL: {url}")
+                continue
+
+            api_url = "https://instagram-post-and-reels-downloader.p.rapidapi.com/main/"
+            headers = {
+                "X-RapidAPI-Key": RAPID_API_KEY,
+                "X-RapidAPI-Host": "instagram-post-and-reels-downloader.p.rapidapi.com"
+            }
+            response = requests.get(api_url, headers=headers, params={"url": url})
+
+            if response.status_code == 200:
+                data = response.json()
+                if isinstance(data, list) and data:
+                    download_url = data[0].get('link')
+                    if download_url:
+                        video_response = requests.get(download_url)
+                        if video_response.status_code == 200:
+                            video_buffer = io.BytesIO(video_response.content)
+                            video_buffer.seek(0)
+
                             if first_message:
                                 message_content = f"{ctx.author.mention}: {caption}" if caption else f"{ctx.author.mention} used /insta"
                                 first_message = False
                             else:
                                 message_content = None
-                            file = disnake.File(fp=video_data, filename=file_name)
+                            file = disnake.File(fp=video_buffer, filename="instagram_reel.mp4")
                             await ctx.channel.send(content=message_content, file=file)
                         else:
-                            await ctx.send(f"Failed to download the video. Original link: {original_url}", ephemeral=True)
+                            await ctx.send("Failed to download the reel from the provided URL.")
                     else:
-                        await ctx.send(f"Reel video URL not found. Original link: {original_url}", ephemeral=True)
+                        await ctx.send("No download URL was found in the API response.")
                 else:
-                    await ctx.send(f"Failed to fetch Instagram Reel content. Here's the original link: {original_url}", ephemeral=True)
-            except Exception as e:
-                await ctx.send(f"An error occurred: {e}", ephemeral=True)
+                    await ctx.send("The API response is not in the expected format.")
+            else:
+                await ctx.send(f"Failed to communicate with the API. Status code: {response.status_code}")
