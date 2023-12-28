@@ -46,35 +46,45 @@ def setup(bot):
                 await ctx.send(f"Invalid Instagram URL: {url}")
                 continue
 
-            api_url = "https://instagram-post-and-reels-downloader.p.rapidapi.com/main/"
+            api_url = "https://instagram-api32.p.rapidapi.com/"
+            querystring = {"url": url}
+
             headers = {
                 "X-RapidAPI-Key": RAPID_API_KEY,
-                "X-RapidAPI-Host": "instagram-post-and-reels-downloader.p.rapidapi.com"
+                "X-RapidAPI-Host": "instagram-api32.p.rapidapi.com"
             }
-            response = requests.get(api_url, headers=headers, params={"url": url})
+
+            response = requests.get(api_url, headers=headers, params=querystring)
 
             if response.status_code == 200:
                 data = response.json()
-                if isinstance(data, list) and data:
-                    download_url = data[0].get('link')
-                    if download_url:
-                        video_response = requests.get(download_url)
-                        if video_response.status_code == 200:
-                            video_buffer = io.BytesIO(video_response.content)
-                            video_buffer.seek(0)
+                if isinstance(data, dict) and "error" in data:
+                    error_message = data["error"]
+                    await ctx.send(f"Error: {error_message}", ephemeral=True)
+                elif isinstance(data, dict) and "medias" in data:
+                    medias = data["medias"]
+                    if medias and isinstance(medias, list):
+                        video_url = medias[0].get("url")
+                        if video_url:
+                            video_response = requests.get(video_url)
+                            if video_response.status_code == 200:
+                                video_buffer = io.BytesIO(video_response.content)
+                                video_buffer.seek(0)
 
-                            if first_message:
-                                message_content = f"{ctx.author.mention}: {caption}" if caption else f"{ctx.author.mention} used /insta"
-                                first_message = False
+                                if first_message:
+                                    message_content = f"{ctx.author.mention}: {caption}" if caption else f"{ctx.author.mention} used /insta"
+                                    first_message = False
+                                else:
+                                    message_content = None
+                                file = disnake.File(fp=video_buffer, filename="instagram_reel.mp4")
+                                await ctx.channel.send(content=message_content, file=file)
                             else:
-                                message_content = None
-                            file = disnake.File(fp=video_buffer, filename="instagram_reel.mp4")
-                            await ctx.channel.send(content=message_content, file=file)
+                                await ctx.send("Failed to download the reel from the provided URL.", ephemeral=True)
                         else:
-                            await ctx.send("Failed to download the reel from the provided URL.")
+                            await ctx.send("No video URL was found in the API response.", ephemeral=True)
                     else:
-                        await ctx.send("No download URL was found in the API response.")
+                        await ctx.send("The 'medias' key in the API response is not in the expected format.", ephemeral=True)
                 else:
-                    await ctx.send("The API response is not in the expected format.")
+                    await ctx.send("The API response is not in the expected format.", ephemeral=True)
             else:
-                await ctx.send(f"Failed to communicate with the API. Status code: {response.status_code}")
+                await ctx.send(f"Failed to communicate with the API. Status code: {response.status_code}", ephemeral=True)
