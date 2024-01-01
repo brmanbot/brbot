@@ -1,3 +1,4 @@
+import re
 import aiosqlite
 import disnake
 import aiohttp
@@ -6,35 +7,40 @@ from disnake import ApplicationCommandInteraction
 from utils import bot, autocomp_colours, shorten_url
 from database import add_video_to_database
 from config import GUILD_IDS
-from private_config import TIKTOK_ARCHIVE_CHANNEL
+from private_config import TIKTOK_ARCHIVE_CHANNEL, RAPID_API_KEY
 
+async def fetch_content(session, url, content_type):
+    headers = {"User-Agent": "MyBot"}
+    if content_type == "tiktok":
+        api_url = "https://api.tik.fail/api/grab"
+        data = {"url": url}
+        response = await session.post(api_url, headers=headers, data=data)
+    elif content_type == "instagram":
+        api_url = "https://instagram-downloader-download-instagram-videos-stories3.p.rapidapi.com/instagram/v1/get_info/"
+        querystring = {"url": url}
+        headers.update({
+            "X-RapidAPI-Key": RAPID_API_KEY,
+            "X-RapidAPI-Host": "instagram-downloader-download-instagram-videos-stories3.p.rapidapi.com"
+        })
+        response = await session.get(api_url, headers=headers, params=querystring)
 
-async def resolve_short_url(url):
-    async with aiohttp.ClientSession() as session:
-        async with session.head(url, allow_redirects=True) as response:
-            return str(response.url)
+    if response.status == 200:
+        return await response.json()
+    else:
+        return None
 
-
-async def fetch_tiktok_content(session, url):
-    async with session.post(
-        "https://api.tik.fail/api/grab",
-        headers={"User-Agent": "MyTikTokBot"},
-        data={"url": url}
-    ) as response:
+async def download_video(session, video_url):
+    async with session.get(video_url) as response:
         if response.status == 200:
-            return await response.json()
+            return io.BytesIO(await response.read())
         else:
             return None
 
-
-async def download_video(video_url):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(video_url) as response:
-            if response.status == 200:
-                return io.BytesIO(await response.read())
-            else:
-                return None
-
+async def video_exists(name, url, db_path="videos.db"):
+    query = "SELECT * FROM videos WHERE name = ? OR url = ?"
+    async with aiosqlite.connect(db_path) as db:
+        async with db.execute(query, (name, url)) as cursor:
+            return await cursor.fetchone() is not None
 
 def setup(bot):
     @bot.slash_command(
@@ -57,112 +63,82 @@ def setup(bot):
             ),
             disnake.Option(
                 "url",
-                "Provide the URL of the video to save.",
+                "Provide the URL of the video to save (TikTok, Instagram Reels, or Discord video URL).",
                 type=disnake.OptionType.string,
                 required=True
             )
         ]
     )
     async def vid(inter, colour: str, name: str, url: str):
-        await inter.send("Processing your request...", ephemeral=True)
-        tiktok_url = "tiktok.com" in url
+        await inter.response.send_message("Processing your request...", ephemeral=True)
 
-        if tiktok_url:
-            resolved_url = await resolve_short_url(url)
-            async with aiohttp.ClientSession() as session:
-                tiktok_response = await fetch_tiktok_content(session, resolved_url)
-                if tiktok_response and tiktok_response.get("success"):
-                    video_url = tiktok_response["data"]["download"]["video"].get("NoWM", {}).get("url")
-                    tiktok_author = tiktok_response['data']['metadata'].get('AccountProfileName', 'Unknown')
-                    original_tiktok_url = tiktok_response['data']['metadata'].get('VideoURL', 'Unknown')
-                    video_data = await download_video(video_url)
+        tiktok_url_pattern = r'(https?://(vm\.tiktok\.com/[\w-]+)|(https?://www\.tiktok\.com/@[\w-]+/video/[\d]+))'
+        tiktok_url = re.match(tiktok_url_pattern, url)
+        instagram_url = "instagram.com" in url and re.match(
+            r'https?://www\.instagram\.com/([a-zA-Z0-9_.]+/)?(p|reel)/[a-zA-Z0-9-_]+', url)
+        discord_url = url.startswith("https://cdn.discordapp.com/attachments/") or url.startswith(
+            "https://media.discordapp.net/attachments/")
+
+        async with aiohttp.ClientSession() as session:
+            if tiktok_url or instagram_url:
+                content_type = "tiktok" if tiktok_url else "instagram"
+                content_response = await fetch_content(session, url, content_type)
+                if content_response:
+                    if content_type == "tiktok" and content_response.get("success"):
+                        video_url = content_response["data"]["download"]["video"].get("NoWM", {}).get("url")
+                    elif content_type == "instagram" and content_response.get("status") == "success":
+                        video_url = content_response["contents"][0]["url"]
+                    else:
+                        await inter.followup.send(f"Failed to fetch {content_type} content.", ephemeral=True)
+                        return
+
+                    video_data = await download_video(session, video_url)
                     if video_data:
+                        if await video_exists(name, url):
+                            await inter.followup.send("A video with the same name or URL already exists.", ephemeral=True)
+                            return
+
                         upload_channel = bot.get_channel(int(TIKTOK_ARCHIVE_CHANNEL))
                         if upload_channel:
-                            try:
-                                video_message = await upload_channel.send(
-                                    file=disnake.File(fp=video_data, filename="tiktok_video.mp4")
-                                )
-                                resolved_url = video_message.attachments[0].url
-                                short_url = await shorten_url(resolved_url)
-                                if short_url:
-                                    added_by = f"{inter.user.name}#{inter.user.discriminator}"
-                                    await add_video_to_database(name, short_url, colour.lower(), resolved_url, added_by)
-                                    bot.video_manager.video_lists[colour.lower()].append(short_url)
-                                    bot.video_manager.save_data()
-                                    await inter.followup.send(f"Saved `{short_url}` as `{name}` in `{colour}` database")
-                                else:
-                                    await inter.followup.send("Failed to shorten the URL.")
-                                return
-                            except Exception as e:
-                                await inter.followup.send(f"An error occurred: {e}")
-                                return
+                            video_message = await upload_channel.send(
+                                file=disnake.File(fp=video_data, filename=f"{name}.mp4")
+                            )
+                            resolved_url = video_message.attachments[0].url
+                            short_url = await shorten_url(resolved_url)
+                            if short_url:
+                                added_by = f"{inter.user.name}#{inter.user.discriminator}"
+                                await add_video_to_database(name, short_url, colour.lower(), resolved_url, added_by)
+                                bot.video_manager.video_lists[colour.lower()].append(short_url)
+                                bot.video_manager.save_data()
+                                await inter.followup.send(f"Saved `{short_url}` as `{name}` in `{colour}` database")
+                            else:
+                                await inter.followup.send("Failed to shorten the URL.", ephemeral=True)
                         else:
-                            await inter.followup.send("Invalid upload channel ID.")
-                            return
+                            await inter.followup.send("Invalid upload channel ID.", ephemeral=True)
                     else:
-                        await inter.followup.send("Failed to download TikTok video.")
-                        return
+                        await inter.followup.send(f"Failed to download {content_type} video.", ephemeral=True)
                 else:
-                    await inter.followup.send("Failed to fetch TikTok content.")
+                    await inter.followup.send(f"Failed to fetch {content_type} content.", ephemeral=True)
+
+            elif discord_url:
+                if await video_exists(name, url):
+                    await inter.followup.send("A video with the same name or URL already exists.", ephemeral=True)
                     return
 
-        if not tiktok_url:
-            if not (url.startswith("https://cdn.discordapp.com/attachments/") or
-                    url.startswith("https://media.discordapp.net/attachments/")):
-                await inter.followup.send("Discord video URLs only.", ephemeral=True)
-                return
+                short_url = await shorten_url(url)
+                if short_url is None:
+                    await inter.followup.send("Error creating short URL", ephemeral=True)
+                    return
 
-            short_url = await shorten_url(url)
-            if short_url is None:
-                await inter.followup.send("Error creating short URL")
-                return
+                added_by = f"{inter.user.name}#{inter.user.discriminator}"
+                await add_video_to_database(name, short_url, colour.lower(), url, added_by)
+                bot.video_manager.video_lists[colour.lower()].append(short_url)
+                bot.video_manager.save_data()
+                await inter.followup.send(f"Saved `{short_url}` as `{name}` in `{colour}` database")
 
-            added_by = f"{inter.user.name}#{inter.user.discriminator}"
-            
-            query = ("SELECT * FROM videos WHERE name = ? OR url = ? OR original_url = ?")
-            values = (name, short_url, url)
-
-            async with aiosqlite.connect("videos.db") as db:
-                try:
-                    async with db.execute(query, values) as cursor:
-                        results = await cursor.fetchall()
-
-                    for result in results:
-                        if result[1] == name:
-                            await inter.followup.send(
-                                f"An entry with the same name `{name}` already exists in the database. "
-                                "Please use a different name."
-                            )
-                            return
-                        if result[2] == short_url or result[4] == url:
-                            await inter.followup.send(
-                                f"An entry with the same URL `{url}` already exists in the database. "
-                                "Please use a different URL or video."
-                            )
-                            return
-
-                    await add_video_to_database(name, short_url, colour.lower(), url, added_by)
-
-                    bot.video_manager.video_lists[colour.lower()].append(short_url)
-                    bot.video_manager.save_data()
-                    await inter.followup.send(
-                        f"Saved `{short_url}` as `{name}` in `{colour}` database"
-                    )
-                except aiosqlite.IntegrityError as e:
-                    if "NOT NULL constraint failed" in str(e):
-                        column_name = str(e).split("failed: ")[1]
-                        await inter.followup.send(
-                            f"An error occurred while saving the video: {e}. Column `{column_name}` has a NULL value."
-                        )
-                    else:
-                        await inter.followup.send(
-                            f"An integrity error occurred while saving the video: {e}"
-                        )
-                except aiosqlite.Error as e:
-                    await inter.followup.send(
-                        f"An error occurred while saving the video: {e}"
-                    )
+            else:
+                await inter.followup.send(
+                    "Invalid URL. Please provide a valid TikTok, Instagram, or Discord video URL.", ephemeral=True)
 
     @vid.autocomplete("colour")
     async def vid_autocomplete_colour(inter: ApplicationCommandInteraction, user_input: str):
