@@ -4,7 +4,7 @@ import disnake
 import aiohttp
 import io
 from disnake import ApplicationCommandInteraction
-from utils import bot, autocomp_colours, shorten_url
+from utils import bot, autocomp_colours, shorten_url, has_role_check
 from database import add_video_to_database
 from config import GUILD_IDS
 from private_config import TIKTOK_ARCHIVE_CHANNEL, RAPID_API_KEY
@@ -70,6 +70,9 @@ def setup(bot):
         ]
     )
     async def vid(inter, colour: str, name: str, url: str):
+        if not await has_role_check(inter):
+            await inter.response.send_message("You do not have permission to use this command.", ephemeral=True)
+            return
         await inter.response.send_message("Processing your request...", ephemeral=True)
 
         tiktok_url_pattern = r'(https?://(vm\.tiktok\.com/[\w-]+)|(https?://www\.tiktok\.com/@[\w-]+/video/[\d]+))'
