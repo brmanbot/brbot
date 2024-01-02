@@ -8,11 +8,11 @@ from private_config import RAPID_API_KEY
 def setup(bot):
     @bot.slash_command(
         name="insta",
-        description="Process Instagram Reels and Posts for easy viewing.",
+        description="Process Instagram Reels for easy viewing.",
         options=[
             disnake.Option(
                 name="url1",
-                description="First Instagram URL.",
+                description="First Instagram Reel URL.",
                 type=disnake.OptionType.string,
                 required=True
             ),
@@ -25,7 +25,7 @@ def setup(bot):
         ] + [
             disnake.Option(
                 name=f"url{i}",
-                description=f"Instagram URL #{i}.",
+                description=f"Reel #{i}.",
                 type=disnake.OptionType.string,
                 required=False
             ) for i in range(2, 11)
@@ -56,44 +56,36 @@ def setup(bot):
             if response.status_code == 200:
                 data = response.json()
                 if data.get("status") == "success" and "contents" in data:
-                    for content in data["contents"]:
-                        if "url" in content:
-                            media_url = content["url"]
-                            media_response = requests.get(media_url)
-                            if media_response.status_code == 200:
-                                media_content = media_response.content
-                                media_buffer = io.BytesIO(media_content)
-                                media_buffer.seek(0)
+                    contents = data["contents"]
+                    if contents and isinstance(contents, list) and "url" in contents[0]:
+                        video_url = contents[0]["url"]
+                        video_response = requests.get(video_url)
+                        if video_response.status_code == 200:
+                            video_content = video_response.content
+                            video_buffer = io.BytesIO(video_content)
+                            video_buffer.seek(0)
 
-                                if media_url.endswith(('.mp4', '.mov')):
-                                    filename = "video.mp4"
-                                elif media_url.endswith(('.jpg', '.jpeg', '.png')):
-                                    filename = "image.jpg"
-                                else:
-                                    continue 
-                                
-                                if first_message:
-                                    message_content = (
-                                        f"{ctx.author.mention}: {caption}" 
-                                        if caption 
-                                        else f"{ctx.author.mention} used /insta"
-                                    )
-                                    first_message = False
-                                else:
-                                    message_content = None
-
-                                file = disnake.File(fp=media_buffer, filename=filename)
-                                await ctx.channel.send(content=message_content, file=file)
-                            else:
-                                await ctx.send(
-                                    "Failed to download media from the provided URL.",
-                                    ephemeral=True
+                            if first_message:
+                                message_content = (
+                                    f"{ctx.author.mention}: {caption}" 
+                                    if caption 
+                                    else f"{ctx.author.mention} used /insta"
                                 )
+                                first_message = False
+                            else:
+                                message_content = None
+                            file = disnake.File(fp=video_buffer, filename="instagram_reel.mp4")
+                            await ctx.channel.send(content=message_content, file=file)
                         else:
                             await ctx.send(
-                                "No media URL was found in the API response.",
+                                "Failed to download the reel from the provided URL.",
                                 ephemeral=True
                             )
+                    else:
+                        await ctx.send(
+                            "No video URL was found in the API response.",
+                            ephemeral=True
+                        )
                 else:
                     await ctx.send(
                         "The API response is not in the expected format or status was not successful.",
