@@ -3,6 +3,7 @@ import datetime
 import json
 import os
 import time
+import aiohttp
 import aiosqlite
 import pyshorteners
 import disnake
@@ -18,13 +19,14 @@ from video_manager import VideoManager
 
 print("Utils imported...")
 
-class CustomBot(InteractionBot):
+class CustomBot(commands.InteractionBot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._cooldown = None
         self.update_cooldown()
         self.video_manager = None
         self.active_videos = {}
+        self.http_session = aiohttp.ClientSession()
 
     @property
     def cooldown(self):
@@ -33,6 +35,10 @@ class CustomBot(InteractionBot):
 
     def update_cooldown(self):
         self._cooldown = get_cooldown()
+
+    async def close(self):
+        await self.http_session.close()
+        await super().close()
 
 bot = CustomBot(intents=INTENTS)
 
