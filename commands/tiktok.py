@@ -28,18 +28,19 @@ async def download_media(url, http_session):
         else:
             return None
 
-async def process_slideshow(urls, ctx, http_session):
+async def process_slideshow(urls, http_session):
     tasks = [download_media(url, http_session) for url in urls]
     images = await asyncio.gather(*tasks)
 
+    files = []
     for i, image_data in enumerate(images):
         if image_data:
             file_name = f"slideshow_image_{i+1}.jpg"
-            file = disnake.File(fp=image_data, filename=file_name)
-            await ctx.channel.send(file=file)
-            image_data.close()
+            files.append(disnake.File(fp=image_data, filename=file_name))
         else:
-            await ctx.send(f"Failed to download image #{i+1}.", ephemeral=True)
+            return None, f"Failed to download image #{i+1}."
+
+    return files, None
 
 def setup(bot):
     @bot.slash_command(
@@ -83,18 +84,29 @@ def setup(bot):
 
             if tiktok_response and tiktok_response.get("success"):
                 author_id = tiktok_response["data"]["metadata"]["AccountUserName"]
-                post_id = tiktok_response["data"]["metadata"]["hash"]
+                timestamp = tiktok_response["data"]["metadata"]["timestamp"]
 
                 if 'resource' in tiktok_response['data'] and tiktok_response['data']['resource'] == 'slideshow':
                     slideshow_urls = tiktok_response['data']['download']
-                    await process_slideshow(slideshow_urls, ctx, bot.http_session)
+                    slideshow_files, error_message = await process_slideshow(slideshow_urls, bot.http_session)
+                    
+                    if slideshow_files:
+                        try:
+                            message_content = f"{ctx.author.mention}: {caption}" if caption else f"{ctx.author.mention} used /tiktok"
+                            await ctx.channel.send(content=message_content, files=slideshow_files)
+                            for file in slideshow_files:
+                                file.fp.close()
+                        except disnake.HTTPException as e:
+                            await ctx.send(f"An error occurred while uploading the slideshow: {e}", ephemeral=True)
+                    else:
+                        await ctx.send(error_message, ephemeral=True)
                 else:
                     video_url = tiktok_response["data"]["download"]["video"].get("NoWM", {}).get("url")
                     video_data = await download_media(video_url, bot.http_session)
 
                     if video_data:
                         try:
-                            file_name = f"{author_id}_{post_id}.mp4"
+                            file_name = f"{author_id}_{timestamp}.mp4"
                             if first_message:
                                 message_content = f"{ctx.author.mention}: {caption}" if caption else f"{ctx.author.mention} used /tiktok"
                                 first_message = False
