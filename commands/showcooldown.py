@@ -1,3 +1,4 @@
+import json
 import disnake
 import time
 import matplotlib.pyplot as plt
@@ -56,10 +57,16 @@ def setup(bot):
 
         current_time = time.time()
         on_cooldown = 0
-        total_videos = len(bot.video_manager.played_videos)
 
-        for _, timestamp in bot.video_manager.played_videos.items():
-            if current_time - timestamp < cooldown_value:
+        with open('video_data.json', 'r') as file:
+            video_data = json.load(file)
+
+        all_videos = {video for color_list in video_data['video_lists'].values() for video in color_list}
+        total_videos = len(all_videos)
+
+        for video in all_videos:
+            last_played = video_data['played_videos'].get(video)
+            if last_played and (current_time - last_played < cooldown_value):
                 on_cooldown += 1
 
         available_videos = total_videos - on_cooldown
