@@ -90,18 +90,24 @@ def setup(bot):
         description="Process Instagram Reels and Posts for easy viewing.",
         options=[
             disnake.Option(
-                name=f"url{i}",
-                description=f"Instagram URL #{i}.",
+                "url1",
+                "First Instagram URL.",
                 type=disnake.OptionType.string,
-                required=i == 1
-            ) for i in range(1, 11)
-        ] + [
+                required=True
+            ),
             disnake.Option(
-                name="caption",
-                description="Replace the `@user used /insta` message with your own.",
+                "caption",
+                "Replace the `@user used /insta` message with your own.",
                 type=disnake.OptionType.string,
                 required=False
             )
+        ] + [
+            disnake.Option(
+                f"url{i}",
+                f"Instagram URL #{i}.",
+                type=disnake.OptionType.string,
+                required=False
+            ) for i in range(2, 11)
         ]
     )
     async def downloadreel(ctx, **inputs):
