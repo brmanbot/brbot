@@ -6,7 +6,6 @@ import re
 import io
 from private_config import RAPID_API_KEY
 
-
 async def fetch_media(session, url, content_type, content_counter, ctx):
     try:
         async with session.get(url) as response:
@@ -39,21 +38,22 @@ async def process_urls(ctx, urls, caption):
                 await ctx.send(f"Invalid Instagram URL: {url}", ephemeral=True)
                 continue
 
-            api_url = "https://instagram-downloader-download-instagram-videos-stories3.p.rapidapi.com/instagram/v1/get_info/"
+            api_url = "https://instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com/"
             querystring = {"url": url}
             headers = {
                 "X-RapidAPI-Key": RAPID_API_KEY,
-                "X-RapidAPI-Host": "instagram-downloader-download-instagram-videos-stories3.p.rapidapi.com"
+                "X-RapidAPI-Host": "instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com"
             }
 
             try:
                 async with session.get(api_url, headers=headers, params=querystring) as response:
                     if response.status == 200:
                         data = await response.json()
-                        if data.get("status") == "success" and "contents" in data:
-                            for content in data["contents"]:
+
+                        if isinstance(data, list):
+                            for content in data:
                                 if "url" in content:
-                                    task = fetch_media(session, content["url"], content["type"], content_counter, ctx)
+                                    task = fetch_media(session, content["url"], content.get("type", "video"), content_counter, ctx)
                                     tasks.append(task)
                                     content_counter += 1
                         else:
@@ -71,7 +71,6 @@ async def process_urls(ctx, urls, caption):
 
         results = await asyncio.gather(*[task for task in tasks if task is not None])
         first_message = True
-
         for media_buffer, filename in results:
             if media_buffer and filename:
                 if first_message:
