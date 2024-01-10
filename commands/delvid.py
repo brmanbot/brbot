@@ -51,12 +51,13 @@ class DeleteVideoView(disnake.ui.View):
             else:
                 await interaction.response.edit_message(content="Error deleting the videos. Please try again.", view=None)
         else:
-            removed_url, removed_name = await self.ctx.bot.video_manager.remove_video(self.url, "url")
+            # Corrected call for single video deletion
+            removed_url, removed_name = await self.ctx.bot.video_manager.remove_video(
+                self.url, "url", MOD_LOG, interaction.user)  # Include MOD_LOG and interaction.user
             if removed_url and removed_name:
                 await interaction.response.edit_message(content=f"Deleted `{removed_name}` from the database.", view=None)
             else:
                 await interaction.response.edit_message(content="Error deleting the video. Please try again.", view=None)
-
 def setup(bot):
     @bot.slash_command(
         name="delvid",

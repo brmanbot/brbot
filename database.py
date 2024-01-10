@@ -36,13 +36,18 @@ async def initialize_database():
         logging.error(f"Error initializing the database: {e}")
 
 
-async def add_video_to_database(name, url, color, original_url, added_by):
+async def add_video_to_database(name, url, color, original_url, added_by, video_manager):
     async with aiosqlite.connect(DATABASE_NAME) as db:
         query = "INSERT INTO videos (name, url, color, original_url, added_by) VALUES (?, ?, ?, ?, ?)"
         values = (name, url, color, original_url, added_by)
         try:
             await db.execute(query, values)
             await db.commit()
+            if color in video_manager.video_lists:
+                video_manager.video_lists[color].append(url)
+                fisher_yates_shuffle(video_manager.video_lists[color])
+                video_manager.save_data()
+
         except aiosqlite.IntegrityError as e:
             logging.error(f"Error adding video to the database: {e}")
 

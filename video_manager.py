@@ -36,11 +36,16 @@ class VideoManager:
                     self.video_lists = data.get("video_lists", {})
                     self.last_reset = data.get("last_reset", {})
                     self.played_videos = data.get("played_videos", {})
-                    self.hall_of_fame = data.get("hall_of_fame", [])  
+                    self.hall_of_fame = data.get("hall_of_fame", [])
+
+                for color in COLORS:
+                    if color in self.video_lists:
+                        fisher_yates_shuffle(self.video_lists[color])
+
         except Exception as e:
             print(f"Error loading data from file: {e}")
             raise e
-    
+        
     @classmethod
     async def create(cls, bot):
         video_manager = cls(bot)
@@ -65,6 +70,7 @@ class VideoManager:
         removed_url = None
         removed_name = None
         added_by = None
+        color_removed_from = None
 
         async with aiosqlite.connect("videos.db") as db:
             for color in COLORS:
@@ -75,7 +81,7 @@ class VideoManager:
                     if result is not None:
                         removed_name = result[1]
                         removed_url = result[2]
-                        vidcolor= result[3]
+                        color_removed_from = result[3]
                         removed_og_url = result[4]
                         added_by = result[6]
                         await db.execute(f"DELETE FROM videos WHERE {identifier_type} = ? AND color = ?", (identifier, color))
@@ -83,33 +89,26 @@ class VideoManager:
                         break
 
         if removed_url is not None and removed_name is not None:
-            for color in COLORS:
-                if color not in self.video_lists:
-                    self.video_lists[color] = []
-                if removed_url in self.video_lists[color]:
-                    self.video_lists[color].remove(removed_url)
+            if color_removed_from in self.video_lists:
+                self.video_lists[color_removed_from].remove(removed_url)
+                fisher_yates_shuffle(self.video_lists[color_removed_from])
 
-            if removed_url in self.played_videos:
-                del self.played_videos[removed_url]
+            self.played_videos.pop(removed_url, None)
+            self.hall_of_fame.remove(removed_url) if removed_url in self.hall_of_fame else None
 
-            if removed_url in self.hall_of_fame:
-                self.hall_of_fame.remove(removed_url)
+            channel = self.bot.get_channel(MOD_LOG)
+            if channel:
+                if added_by != f"{deleted_by.name}#{deleted_by.discriminator}":
+                    message = f"<@{added_by}> your video `{removed_name}` has been deleted by `{deleted_by.name}` from the `{color_removed_from}` database <a:ALERT:916868273142906891>\n{removed_og_url}"
+                else:
+                    username = added_by.split('#')[0]
+                    message = f"`{username}` deleted video `{removed_name}` from the `{color_removed_from}` database <a:ALERT:916868273142906891>\n{removed_og_url}"
 
-            username_parts = added_by.split("#")
-            username = username_parts[0]
-            discriminator = username_parts[1] if len(username_parts) > 1 else None
-
-            user = next((u for u in self.bot.users if u.name == username and (u.discriminator == discriminator if discriminator else True)), None)
-
-            if user and user.id != deleted_by.id:
-                channel = self.bot.get_channel(MOD_LOG)
-                if channel:
-                    message = f"<@{user.id}> your video `{removed_name}` has been deleted by `{deleted_by.name}` from the `{vidcolor}` database <a:ALERT:916868273142906891>\n{removed_og_url}"
-                    await channel.send(message)
+                await channel.send(message)
 
         self.save_data()
-
         return removed_url, removed_name
+
 
     async def search_videos(self, phrase, identifier_type):
         matched_videos = []
@@ -169,16 +168,14 @@ class VideoManager:
             self.save_data()
 
     async def get_available_videos_with_cooldown(self, colors, current_time, cooldown):
-        tasks = [self._get_videos_for_color(c, current_time, cooldown) for c in colors]
-        results = await asyncio.gather(*tasks)
-
         available_videos = []
-        for videos in results:
-            available_videos.extend(videos)
+        for color in colors:
+            if color in self.video_lists:
+                filtered_videos = [video for video in self.video_lists[color] if current_time - self.played_videos.get(video, 0) > cooldown]
+                available_videos.extend(filtered_videos)
 
-        fisher_yates_shuffle(available_videos)
         return available_videos
-
+    
     async def _get_videos_for_color(self, color, current_time, cooldown):
         if not self.video_lists.get(color) or (current_time - self.last_reset.get(color, 0) > 129600):
             query = "SELECT url FROM videos WHERE color = ?"
