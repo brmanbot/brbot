@@ -19,7 +19,7 @@ def setup(bot):
 
     async def fetch_videos(colour):
         async with aiosqlite.connect("videos.db") as db:
-            query = "SELECT name, url FROM videos WHERE color = ?"
+            query = "SELECT name, url FROM videos WHERE LOWER(color) = LOWER(?)"
             values = (colour,)
             async with db.execute(query, values) as cursor:
                 videos = await cursor.fetchall()
