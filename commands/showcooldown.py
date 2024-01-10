@@ -3,13 +3,11 @@ import disnake
 import time
 import matplotlib.pyplot as plt
 import os
-import aiohttp
 import matplotlib.patheffects as pe
 from config import GUILD_IDS, get_cooldown
 from utils import bot
 
 IMAGE_PATH = 'cooldown_pie_chart.png'
-
 
 def format_cooldown(cooldown_value):
     days, remainder = divmod(cooldown_value, 86400)
@@ -28,7 +26,6 @@ def format_cooldown(cooldown_value):
 
     return ", ".join(formatted_cooldown)
 
-
 def format_cooldown_for_title(cooldown_value):
     days, remainder = divmod(cooldown_value, 86400)
     hours, remainder = divmod(remainder, 3600)
@@ -42,7 +39,6 @@ def format_cooldown_for_title(cooldown_value):
         return f"{minutes}m"
     else:
         return f"{seconds}s"
-
 
 def setup(bot):
     @bot.slash_command(
@@ -106,14 +102,13 @@ def setup(bot):
         )
         plt.savefig(IMAGE_PATH, transparent=True)
 
-        async with aiohttp.ClientSession() as session:
-            with open(IMAGE_PATH, 'rb') as f:
-                async with session.post('https://0x0.st', data={'file': f}) as resp:
-                    if resp.status != 200:
-                        await ctx.send('Could not upload the image.')
-                        return
-                    else:
-                        img_url = await resp.text()
+        with open(IMAGE_PATH, 'rb') as f:
+            async with bot.http_session.post('https://0x0.st', data={'file': f}) as resp:
+                if resp.status != 200:
+                    await ctx.send('Could not upload the image.')
+                    return
+                else:
+                    img_url = await resp.text()
 
         os.remove(IMAGE_PATH)
 
