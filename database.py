@@ -88,12 +88,13 @@ async def synchronize_cache_with_database():
 
         db_videos = {}
         for color in ["green", "red", "yellow"]:
-            async with db.execute("SELECT url FROM videos WHERE color = ?", (color,)) as cursor:
+            async with db.execute("SELECT url FROM videos WHERE LOWER(color) = ?", (color.lower(),)) as cursor:
                 db_videos[color] = [row[0] for row in await cursor.fetchall()]
 
     if os.path.exists(cache_file_path):
         with open(cache_file_path, "r") as file:
             cache_data = json.load(file)
+            cache_data["video_lists"] = {color.lower(): urls for color, urls in cache_data["video_lists"].items()}
     else:
         cache_data = {"video_lists": {color: [] for color in ["green", "red", "yellow"]}, "last_reset": {}, "played_videos": {}}
 
