@@ -2,6 +2,8 @@ import aiosqlite
 import random
 import time
 import logging
+import json
+import os
 
 DATABASE_NAME = "videos.db"
 
@@ -63,3 +65,48 @@ async def get_hall_of_fame_videos():
             return await cursor.fetchall()
         except aiosqlite.IntegrityError as e:
             logging.error(f"Error retrieving hall of fame videos: {e}")
+
+async def synchronize_cache_with_database():
+    cache_file_path = "video_data.json"
+    db_path = "videos.db"
+    
+    async with aiosqlite.connect(db_path) as db:
+        
+        query = "SELECT url, COUNT(*) c FROM videos GROUP BY url HAVING c > 1"
+        cursor = await db.execute(query)
+        duplicates = await cursor.fetchall()
+
+        for url, _ in duplicates:
+            id_query = "SELECT id FROM videos WHERE url = ?"
+            cursor = await db.execute(id_query, (url,))
+            ids = [row[0] for row in await cursor.fetchall()]
+            for id_to_delete in ids[1:]:
+                delete_query = "DELETE FROM videos WHERE id = ?"
+                await db.execute(delete_query, (id_to_delete,))
+
+        await db.commit()
+
+        db_videos = {}
+        for color in ["green", "red", "yellow"]:
+            async with db.execute("SELECT url FROM videos WHERE color = ?", (color,)) as cursor:
+                db_videos[color] = [row[0] for row in await cursor.fetchall()]
+
+    if os.path.exists(cache_file_path):
+        with open(cache_file_path, "r") as file:
+            cache_data = json.load(file)
+    else:
+        cache_data = {"video_lists": {color: [] for color in ["green", "red", "yellow"]}, "last_reset": {}, "played_videos": {}}
+
+    for color, urls in db_videos.items():
+        cached_urls = set(cache_data["video_lists"].get(color, []))
+        for url in urls:
+            if url not in cached_urls:
+                cache_data["video_lists"].setdefault(color, []).append(url)
+
+        cache_data["video_lists"][color] = list(set(cache_data["video_lists"][color]))
+
+    with open(cache_file_path, "w") as file:
+        json.dump(cache_data, file, indent=4)
+
+    print("Cache and database synchronized.")
+
