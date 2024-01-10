@@ -16,17 +16,19 @@ async def fetch_content(session, url, content_type):
         data = {"url": url}
         response = await session.post(api_url, headers=headers, data=data)
     elif content_type == "instagram":
-        api_url = "https://instagram-downloader-download-instagram-videos-stories3.p.rapidapi.com/instagram/v1/get_info/"
+        api_url = "https://instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com/"
         querystring = {"url": url}
         headers.update({
             "X-RapidAPI-Key": RAPID_API_KEY,
-            "X-RapidAPI-Host": "instagram-downloader-download-instagram-videos-stories3.p.rapidapi.com"
+            "X-RapidAPI-Host": "instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com"
         })
         response = await session.get(api_url, headers=headers, params=querystring)
 
-    if response.status == 200:
-        return await response.json()
-    else:
+        if response.status == 200:
+            data = await response.json()
+
+            if isinstance(data, list) and data and "url" in data[0]:
+                return data[0]["url"]
         return None
 
 async def download_video(session, video_url):
@@ -89,8 +91,8 @@ def setup(bot):
                 if content_response:
                     if content_type == "tiktok" and content_response.get("success"):
                         video_url = content_response["data"]["download"]["video"].get("NoWM", {}).get("url")
-                    elif content_type == "instagram" and content_response.get("status") == "success":
-                        video_url = content_response["contents"][0]["url"]
+                    elif content_type == "instagram":
+                        video_url = content_response
                     else:
                         await inter.followup.send(f"Failed to fetch {content_type} content.", ephemeral=True)
                         return
