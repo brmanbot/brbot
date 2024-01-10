@@ -72,7 +72,7 @@ class VideoManager:
         added_by = None
         color_removed_from = None
 
-        async with aiosqlite.connect("videos.db") as db:
+        async with aiosqlite.connect(self.db_path) as db:
             for color in COLORS:
                 query = f"SELECT * FROM videos WHERE {identifier_type} = ? AND color = ?"
                 values = (identifier, color)
@@ -96,15 +96,16 @@ class VideoManager:
             self.played_videos.pop(removed_url, None)
             self.hall_of_fame.remove(removed_url) if removed_url in self.hall_of_fame else None
 
-            channel = self.bot.get_channel(MOD_LOG)
-            if channel:
-                if added_by != f"{deleted_by.name}#{deleted_by.discriminator}":
-                    message = f"<@{added_by}> your video `{removed_name}` has been deleted by `{deleted_by.name}` from the `{color_removed_from}` database <a:ALERT:916868273142906891>\n{removed_og_url}"
-                else:
-                    username = added_by.split('#')[0]
-                    message = f"`{username}` deleted video `{removed_name}` from the `{color_removed_from}` database <a:ALERT:916868273142906891>\n{removed_og_url}"
+            username_parts = added_by.split("#")
+            username = username_parts[0]
+            discriminator = username_parts[1] if len(username_parts) > 1 else None
 
-                await channel.send(message)
+            user = next((u for u in self.bot.users if u.name == username and (u.discriminator == discriminator if discriminator else True)), None)
+            if user and user.id != deleted_by.id:
+                channel = self.bot.get_channel(MOD_LOG)
+                if channel:
+                    message = f"<@{user.id}> your video `{removed_name}` has been deleted by `{deleted_by.name}` from the `{color_removed_from}` database <a:ALERT:916868273142906891>\n{removed_og_url}"
+                    await channel.send(message)
 
         self.save_data()
         return removed_url, removed_name
