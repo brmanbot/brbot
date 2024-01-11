@@ -34,7 +34,10 @@ async def fetch_tiktok_content(url, http_session):
 async def download_media(url, http_session):
     async with http_session.get(url) as response:
         if response.status == 200:
-            return io.BytesIO(await response.read())
+            chunks = []
+            async for chunk in response.content.iter_chunked(1024 * 1024):
+                chunks.append(chunk)
+            return io.BytesIO(b''.join(chunks))
         else:
             return None
 
