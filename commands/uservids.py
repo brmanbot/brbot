@@ -1,16 +1,12 @@
 import aiosqlite
 import disnake
-import aiohttp
 import matplotlib.pyplot as plt
-import os
+import io
 import matplotlib.patheffects as pe
 import matplotlib.colors as mcolors
 from collections import defaultdict
 from utils import bot
 from config import GUILD_IDS
-
-IMAGE_PATH = 'user_pie_chart.png'
-
 
 def setup(bot):
     @bot.slash_command(
@@ -73,17 +69,16 @@ def setup(bot):
             plt.subplots_adjust(
                 left=0, bottom=0, right=1, top=1, wspace=0, hspace=0
             )
-            plt.savefig(IMAGE_PATH, transparent=True)
 
-            async with aiohttp.ClientSession() as session:
-                with open(IMAGE_PATH, 'rb') as f:
-                    async with session.post('https://0x0.st', data={'file': f}) as resp:
-                        if resp.status != 200:
-                            return await ctx.send('Could not upload the image.')
-                        else:
-                            img_url = await resp.text()
+            img_bytes = io.BytesIO()
+            plt.savefig(img_bytes, format='png', transparent=True)
+            img_bytes.seek(0)
 
-            os.remove(IMAGE_PATH)
+            async with bot.http_session.post('https://0x0.st', data={'file': img_bytes}) as resp:
+                if resp.status != 200:
+                    return await ctx.send('Could not upload the image.')
+                else:
+                    img_url = await resp.text()
 
             embed = disnake.Embed(
                 title=f"Total videos added by each user ({total_videos})",

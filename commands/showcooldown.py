@@ -2,12 +2,10 @@ import json
 import disnake
 import time
 import matplotlib.pyplot as plt
-import os
+import io
 import matplotlib.patheffects as pe
 from config import GUILD_IDS, get_cooldown
 from utils import bot
-
-IMAGE_PATH = 'cooldown_pie_chart.png'
 
 def format_cooldown(cooldown_value):
     days, remainder = divmod(cooldown_value, 86400)
@@ -100,17 +98,17 @@ def setup(bot):
         plt.subplots_adjust(
             left=0, bottom=0, right=1, top=1, wspace=0, hspace=0
         )
-        plt.savefig(IMAGE_PATH, transparent=True)
 
-        with open(IMAGE_PATH, 'rb') as f:
-            async with bot.http_session.post('https://0x0.st', data={'file': f}) as resp:
-                if resp.status != 200:
-                    await ctx.send('Could not upload the image.')
-                    return
-                else:
-                    img_url = await resp.text()
+        img_bytes = io.BytesIO()
+        plt.savefig(img_bytes, format='png', transparent=True)
+        img_bytes.seek(0)
 
-        os.remove(IMAGE_PATH)
+        async with bot.http_session.post('https://0x0.st', data={'file': img_bytes}) as resp:
+            if resp.status != 200:
+                await ctx.send('Could not upload the image.')
+                return
+            else:
+                img_url = await resp.text()
 
         embed_title = f"Current Cooldown: {cooldown_for_title}"
         embed = disnake.Embed(title=embed_title, color=disnake.Color.blue())
