@@ -1,3 +1,4 @@
+import os
 import disnake
 from disnake.ext import commands
 import aiohttp
@@ -5,12 +6,20 @@ import io
 import re
 import asyncio
 from utils import bot
+from PIL import Image
+from moviepy.editor import ImageClip, concatenate_videoclips, AudioFileClip, CompositeVideoClip
+import tempfile
+import numpy as np
+import math
 
 async def resolve_short_url(url, http_session):
     async with http_session.head(url, allow_redirects=True) as response:
         return str(response.url)
 
 async def fetch_tiktok_content(url, http_session):
+    if '/photo/' in url:
+        url = url.replace('/photo/', '/video/')
+
     async with http_session.post(
         "https://api.tik.fail/api/grab",
         headers={"User-Agent": "MyTikTokBot"},
@@ -28,19 +37,51 @@ async def download_media(url, http_session):
         else:
             return None
 
-async def process_slideshow(urls, http_session):
-    tasks = [download_media(url, http_session) for url in urls]
-    images = await asyncio.gather(*tasks)
+async def process_slideshow(image_urls, audio_url, http_session):
+    images_data = await asyncio.gather(*[download_media(url, http_session) for url in image_urls])
+    audio_data = await download_media(audio_url, http_session)
 
-    files = []
-    for i, image_data in enumerate(images):
-        if image_data:
-            file_name = f"slideshow_image_{i+1}.jpg"
-            files.append(disnake.File(fp=image_data, filename=file_name))
-        else:
-            return None, f"Failed to download image #{i+1}."
+    if not audio_data:
+        return None, "Failed to download audio."
 
-    return files, None
+    try:
+        with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as tmp_audio:
+            tmp_audio.write(audio_data.getbuffer())
+            tmp_audio.flush()
+            audio_clip = AudioFileClip(tmp_audio.name)
+
+        slide_duration = 2
+        max_duration_per_image = 6
+        total_video_duration = min(len(images_data) * max_duration_per_image, audio_clip.duration)
+        audio_clip = audio_clip.subclip(0, total_video_duration)
+
+        total_loops = math.ceil(total_video_duration / (slide_duration * len(images_data)))
+
+        clips = []
+        for _ in range(total_loops):
+            for image_data in images_data:
+                with Image.open(image_data) as img:
+                    img = img.convert('RGB')
+
+                    if not clips:
+                        video_frame_size = img.size
+
+                    img.thumbnail(video_frame_size, Image.LANCZOS)
+                    if img.size != video_frame_size:
+                        new_img = Image.new('RGB', video_frame_size)
+                        new_img.paste(img, ((video_frame_size[0] - img.width) // 2, (video_frame_size[1] - img.height) // 2))
+                        img = new_img
+
+                    img_clip = ImageClip(np.array(img)).set_duration(slide_duration)
+                    clips.append(img_clip)
+
+        video = concatenate_videoclips(clips, method="compose")
+        final_video = video.set_audio(audio_clip)
+        final_video.write_videofile("slideshow_video.mp4", codec="libx264", fps=24)
+
+        return "slideshow_video.mp4", None
+    except Exception as e:
+        return None, str(e)
 
 def setup(bot):
     @bot.slash_command(
@@ -87,17 +128,25 @@ def setup(bot):
                 timestamp = tiktok_response["data"]["metadata"]["timestamp"]
 
                 if 'resource' in tiktok_response['data'] and tiktok_response['data']['resource'] == 'slideshow':
+                    video_id = re.findall(r'video/(\d+)', tiktok_response["data"]["metadata"]["VideoURL"])[0]
+                    audio_url = f"https://www.tikwm.com/video/media/play/{video_id}.mp4"
+
                     slideshow_urls = tiktok_response['data']['download']
-                    slideshow_files, error_message = await process_slideshow(slideshow_urls, bot.http_session)
+                    video_file, error_message = await process_slideshow(slideshow_urls, audio_url, bot.http_session)
                     
-                    if slideshow_files:
+                    if video_file:
                         try:
-                            message_content = f"{ctx.author.mention}: {caption}" if caption else f"{ctx.author.mention} used /tiktok"
-                            await ctx.channel.send(content=message_content, files=slideshow_files)
-                            for file in slideshow_files:
-                                file.fp.close()
+                            if first_message:
+                                message_content = f"{ctx.author.mention}: {caption}" if caption else f"{ctx.author.mention} used /tiktok"
+                                first_message = False
+                            else:
+                                message_content = None
+
+                            file = disnake.File(video_file)
+                            await ctx.channel.send(content=message_content, file=file)
+                            os.remove(video_file)
                         except disnake.HTTPException as e:
-                            await ctx.send(f"An error occurred while uploading the slideshow: {e}", ephemeral=True)
+                            await ctx.send(f"An error occurred while uploading the video: {e}", ephemeral=True)
                     else:
                         await ctx.send(error_message, ephemeral=True)
                 else:
