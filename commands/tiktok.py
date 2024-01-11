@@ -7,7 +7,7 @@ import re
 import asyncio
 from utils import bot
 from PIL import Image
-from moviepy.editor import ImageClip, concatenate_videoclips, AudioFileClip, CompositeVideoClip
+from moviepy.editor import ImageClip, concatenate_videoclips, AudioFileClip
 import tempfile
 import numpy as np
 import math
@@ -39,13 +39,12 @@ async def download_media(url, http_session):
 
 async def create_audio_clip(audio_data):
     try:
-        with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as tmp_audio:
+        with tempfile.NamedTemporaryFile(suffix='.mp3', mode='wb', delete=False) as tmp_audio:
             tmp_audio.write(audio_data.getbuffer())
-            tmp_audio.flush()
-            audio_clip = AudioFileClip(tmp_audio.name)
-            return audio_clip, None
+            tmp_audio_path = tmp_audio.name
+        return AudioFileClip(tmp_audio_path), tmp_audio_path, None
     except Exception as e:
-        return None, str(e)
+        return None, None, str(e)
 
 def create_image_clips(images_data, video_frame_size, slide_duration):
     clips = []
@@ -62,15 +61,6 @@ def create_image_clips(images_data, video_frame_size, slide_duration):
             clips.append(img_clip)
     return clips
 
-def generate_video(clips, audio_clip, total_video_duration):
-    try:
-        video = concatenate_videoclips(clips, method="compose")
-        final_video = video.set_audio(audio_clip.subclip(0, total_video_duration))
-        final_video.write_videofile("slideshow_video.mp4", codec="libx264", fps=24)
-        return "slideshow_video.mp4", None
-    except Exception as e:
-        return None, str(e)
-
 async def process_slideshow(image_urls, audio_url, http_session):
     images_data = await asyncio.gather(*[download_media(url, http_session) for url in image_urls])
     audio_data = await download_media(audio_url, http_session)
@@ -78,7 +68,7 @@ async def process_slideshow(image_urls, audio_url, http_session):
     if not audio_data:
         return None, "Failed to download audio."
 
-    audio_clip, error = await create_audio_clip(audio_data)
+    audio_clip, tmp_audio_path, error = await create_audio_clip(audio_data)
     if error:
         return None, error
 
@@ -102,7 +92,21 @@ async def process_slideshow(image_urls, audio_url, http_session):
         new_clips = create_image_clips(images_data, video_frame_size, slide_duration)
         clips.extend(new_clips)
 
-    return generate_video(clips, audio_clip, total_video_duration)
+    try:
+        with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmp_video:
+            video_file_path = tmp_video.name
+            video = concatenate_videoclips(clips, method="compose")
+            final_video = video.set_audio(audio_clip.subclip(0, total_video_duration))
+            final_video.write_videofile(video_file_path, codec="libx264", fps=24)
+            audio_clip.close()  # Close the audio clip
+            return video_file_path, None
+    except Exception as e:
+        if audio_clip:
+            audio_clip.close()  # Ensure closing if an exception occurs
+        return None, str(e)
+    finally:
+        if tmp_audio_path and os.path.exists(tmp_audio_path):
+            os.remove(tmp_audio_path)  # Delete the temporary audio file
 
 def setup(bot):
     @bot.slash_command(
