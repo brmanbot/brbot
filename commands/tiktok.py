@@ -37,6 +37,40 @@ async def download_media(url, http_session):
         else:
             return None
 
+async def create_audio_clip(audio_data):
+    try:
+        with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as tmp_audio:
+            tmp_audio.write(audio_data.getbuffer())
+            tmp_audio.flush()
+            audio_clip = AudioFileClip(tmp_audio.name)
+            return audio_clip, None
+    except Exception as e:
+        return None, str(e)
+
+def create_image_clips(images_data, video_frame_size, slide_duration):
+    clips = []
+    for image_data in images_data:
+        with Image.open(image_data) as img:
+            img = img.convert('RGB')
+            img.thumbnail(video_frame_size, Image.LANCZOS)
+            if img.size != video_frame_size:
+                new_img = Image.new('RGB', video_frame_size)
+                new_img.paste(img, ((video_frame_size[0] - img.width) // 2, (video_frame_size[1] - img.height) // 2))
+                img = new_img
+
+            img_clip = ImageClip(np.array(img)).set_duration(slide_duration)
+            clips.append(img_clip)
+    return clips
+
+def generate_video(clips, audio_clip, total_video_duration):
+    try:
+        video = concatenate_videoclips(clips, method="compose")
+        final_video = video.set_audio(audio_clip.subclip(0, total_video_duration))
+        final_video.write_videofile("slideshow_video.mp4", codec="libx264", fps=24)
+        return "slideshow_video.mp4", None
+    except Exception as e:
+        return None, str(e)
+
 async def process_slideshow(image_urls, audio_url, http_session):
     images_data = await asyncio.gather(*[download_media(url, http_session) for url in image_urls])
     audio_data = await download_media(audio_url, http_session)
@@ -44,44 +78,31 @@ async def process_slideshow(image_urls, audio_url, http_session):
     if not audio_data:
         return None, "Failed to download audio."
 
-    try:
-        with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as tmp_audio:
-            tmp_audio.write(audio_data.getbuffer())
-            tmp_audio.flush()
-            audio_clip = AudioFileClip(tmp_audio.name)
+    audio_clip, error = await create_audio_clip(audio_data)
+    if error:
+        return None, error
 
-        slide_duration = 2
-        max_duration_per_image = 6
-        total_video_duration = min(len(images_data) * max_duration_per_image, audio_clip.duration)
-        audio_clip = audio_clip.subclip(0, total_video_duration)
+    if not audio_clip:
+        return None, "Audio clip creation failed."
 
-        total_loops = math.ceil(total_video_duration / (slide_duration * len(images_data)))
+    slide_duration = 3
+    max_duration_per_image = 6
 
-        clips = []
-        for _ in range(total_loops):
-            for image_data in images_data:
-                with Image.open(image_data) as img:
-                    img = img.convert('RGB')
+    if not images_data:
+        return None, "No images to process."
 
-                    if not clips:
-                        video_frame_size = img.size
+    with Image.open(images_data[0]) as first_image:
+        video_frame_size = first_image.size
 
-                    img.thumbnail(video_frame_size, Image.LANCZOS)
-                    if img.size != video_frame_size:
-                        new_img = Image.new('RGB', video_frame_size)
-                        new_img.paste(img, ((video_frame_size[0] - img.width) // 2, (video_frame_size[1] - img.height) // 2))
-                        img = new_img
+    total_video_duration = min(len(images_data) * max_duration_per_image, audio_clip.duration)
+    total_loops = math.ceil(total_video_duration / (slide_duration * len(images_data)))
 
-                    img_clip = ImageClip(np.array(img)).set_duration(slide_duration)
-                    clips.append(img_clip)
+    clips = []
+    for _ in range(total_loops):
+        new_clips = create_image_clips(images_data, video_frame_size, slide_duration)
+        clips.extend(new_clips)
 
-        video = concatenate_videoclips(clips, method="compose")
-        final_video = video.set_audio(audio_clip)
-        final_video.write_videofile("slideshow_video.mp4", codec="libx264", fps=24)
-
-        return "slideshow_video.mp4", None
-    except Exception as e:
-        return None, str(e)
+    return generate_video(clips, audio_clip, total_video_duration)
 
 def setup(bot):
     @bot.slash_command(
