@@ -158,8 +158,11 @@ def setup(bot):
             original_url = urls[url_key]
             if not original_url:
                 continue
+            if original_url.startswith("https://vm.tiktok.com/"):
+                resolved_url = await resolve_short_url(original_url, bot.http_session)
+            else:
+                resolved_url = original_url
 
-            resolved_url = await resolve_short_url(original_url, bot.http_session) if original_url.startswith("https://vm.tiktok.com/") else original_url
             tiktok_response = await fetch_tiktok_content(resolved_url, bot.http_session)
 
             if tiktok_response and tiktok_response.get("success"):
