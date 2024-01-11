@@ -1,4 +1,5 @@
 import os
+import aiofiles
 import disnake
 from disnake.ext import commands
 import aiohttp
@@ -39,8 +40,8 @@ async def download_media(url, http_session):
 
 async def create_audio_clip(audio_data):
     try:
-        with tempfile.NamedTemporaryFile(suffix='.mp3', mode='wb', delete=False) as tmp_audio:
-            tmp_audio.write(audio_data.getbuffer())
+        async with aiofiles.tempfile.NamedTemporaryFile(suffix='.mp3', mode='wb', delete=False) as tmp_audio:
+            await tmp_audio.write(audio_data.getbuffer())
             tmp_audio_path = tmp_audio.name
         return AudioFileClip(tmp_audio_path), tmp_audio_path, None
     except Exception as e:
@@ -81,33 +82,46 @@ async def process_slideshow(image_urls, audio_url, http_session):
     if not images_data:
         return None, "No images to process."
 
+    processed_clips = []
     with Image.open(images_data[0]) as first_image:
         video_frame_size = first_image.size
 
-    total_video_duration = min(len(images_data) * max_duration_per_image, audio_clip.duration)
+    for image_data in images_data:
+        with Image.open(image_data) as img:
+            img = img.convert('RGB')
+            img.thumbnail(video_frame_size, Image.LANCZOS)
+            if img.size != video_frame_size:
+                new_img = Image.new('RGB', video_frame_size)
+                new_img.paste(img, ((video_frame_size[0] - img.width) // 2, (video_frame_size[1] - img.height) // 2))
+                img = new_img
+
+            processed_clips.append(ImageClip(np.array(img)).set_duration(slide_duration))
+
+    total_video_duration = min(len(processed_clips) * max_duration_per_image, audio_clip.duration)
     total_loops = math.ceil(total_video_duration / (slide_duration * len(images_data)))
 
-    clips = []
+    final_clips = []
     for _ in range(total_loops):
-        new_clips = create_image_clips(images_data, video_frame_size, slide_duration)
-        clips.extend(new_clips)
+        final_clips.extend(processed_clips)
 
     try:
-        with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmp_video:
+        async with aiofiles.tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmp_video:
             video_file_path = tmp_video.name
-            video = concatenate_videoclips(clips, method="compose")
+            video = concatenate_videoclips(final_clips, method="compose")
             final_video = video.set_audio(audio_clip.subclip(0, total_video_duration))
             final_video.write_videofile(video_file_path, codec="libx264", fps=24)
-            audio_clip.close()  # Close the audio clip
+            final_video.close()
             return video_file_path, None
+        
     except Exception as e:
         if audio_clip:
-            audio_clip.close()  # Ensure closing if an exception occurs
+            audio_clip.close()
         return None, str(e)
+
     finally:
         if tmp_audio_path and os.path.exists(tmp_audio_path):
-            os.remove(tmp_audio_path)  # Delete the temporary audio file
-
+            await asyncio.to_thread(os.remove, tmp_audio_path)
+            
 def setup(bot):
     @bot.slash_command(
         name="tiktok",
@@ -158,7 +172,7 @@ def setup(bot):
 
                     slideshow_urls = tiktok_response['data']['download']
                     video_file, error_message = await process_slideshow(slideshow_urls, audio_url, bot.http_session)
-                    
+
                     if video_file:
                         try:
                             if first_message:
@@ -167,12 +181,16 @@ def setup(bot):
                             else:
                                 message_content = None
 
-                            file = disnake.File(video_file)
+                            async with aiofiles.open(video_file, 'rb') as f:
+                                file_content = await f.read()
+                            file = disnake.File(fp=io.BytesIO(file_content), filename=os.path.basename(video_file))
                             await ctx.channel.send(content=message_content, file=file)
-                            os.remove(video_file)
+                            await asyncio.to_thread(os.remove, video_file)
                         except disnake.HTTPException as e:
                             await ctx.send(f"An error occurred while uploading the video: {e}", ephemeral=True)
-                    else:
+                        except Exception as e:
+                            await ctx.send(f"An unexpected error occurred: {e}", ephemeral=True)
+                    elif error_message:
                         await ctx.send(error_message, ephemeral=True)
                 else:
                     video_url = tiktok_response["data"]["download"]["video"].get("NoWM", {}).get("url")
