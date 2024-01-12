@@ -7,8 +7,9 @@ import io
 import re
 import asyncio
 from utils import bot
-from PIL import Image
-from moviepy.editor import ImageClip, concatenate_videoclips, AudioFileClip
+from PIL import Image, ImageOps
+from moviepy.editor import ImageClip, concatenate_videoclips, AudioFileClip, concatenate_audioclips
+from moviepy.audio.fx.all import audio_loop
 import tempfile
 import numpy as np
 import math
@@ -52,26 +53,54 @@ async def create_audio_clip(audio_data):
 
 def create_image_clips(images_data, video_frame_size, slide_duration):
     clips = []
-    for image_data in images_data:
-        with Image.open(image_data) as img:
-            img = img.convert('RGB')
-            img.thumbnail(video_frame_size, Image.LANCZOS)
-            if img.size != video_frame_size:
-                new_img = Image.new('RGB', video_frame_size)
-                new_img.paste(img, ((video_frame_size[0] - img.width) // 2, (video_frame_size[1] - img.height) // 2))
-                img = new_img
+    for img in images_data:
+        if img is None:
+            continue
 
-            img_clip = ImageClip(np.array(img)).set_duration(slide_duration)
-            clips.append(img_clip)
+        img = img.convert('RGB')
+
+        aspect_ratio = img.width / img.height
+        new_width = video_frame_size[0]
+        new_height = int(new_width / aspect_ratio)
+        
+        img = img.resize((new_width, new_height), Image.LANCZOS)
+        if new_height < video_frame_size[1]:
+            padding_top = (video_frame_size[1] - new_height) // 2
+            padding_bottom = video_frame_size[1] - new_height - padding_top
+            img = ImageOps.expand(img, border=(0, padding_top, 0, padding_bottom), fill='black')
+
+        img_clip = ImageClip(np.array(img)).set_duration(slide_duration)
+        clips.append(img_clip)
     return clips
 
-async def process_slideshow(image_urls, audio_url, http_session):
-    images_data = await asyncio.gather(*[download_media(url, http_session) for url in image_urls])
-    audio_data = await download_media(audio_url, http_session)
+def calculate_optimal_video_size(images_data, max_width=1920, max_height=1080):
+    average_aspect_ratio = sum((img.width / img.height for img in images_data if img is not None)) / len(images_data)
 
+    if average_aspect_ratio > 1:
+        width = max_width
+        height = int(width / average_aspect_ratio)
+    else:
+        height = max_height
+        width = int(height * average_aspect_ratio)
+
+    if width > max_width:
+        width = max_width
+        height = int(width / average_aspect_ratio)
+    if height > max_height:
+        height = max_height
+        width = int(height * average_aspect_ratio)
+
+    return width, height
+
+async def process_slideshow(image_urls, audio_url, http_session):
+    image_data_coroutines = [download_media(url, http_session) for url in image_urls]
+    image_data_results = await asyncio.gather(*image_data_coroutines)
+    images_data = [Image.open(io.BytesIO(result.getvalue())) if result else None for result in image_data_results]
+
+    audio_data = await download_media(audio_url, http_session)
     if not audio_data:
         return None, "Failed to download audio."
-
+    
     audio_clip, tmp_audio_path, error = await create_audio_clip(audio_data)
     if error:
         return None, error
@@ -85,22 +114,10 @@ async def process_slideshow(image_urls, audio_url, http_session):
     if not images_data:
         return None, "No images to process."
 
-    processed_clips = []
-    with Image.open(images_data[0]) as first_image:
-        video_frame_size = first_image.size
+    video_frame_size = calculate_optimal_video_size(images_data)
+    processed_clips = create_image_clips(images_data, video_frame_size, slide_duration)
 
-    for image_data in images_data:
-        with Image.open(image_data) as img:
-            img = img.convert('RGB')
-            img.thumbnail(video_frame_size, Image.LANCZOS)
-            if img.size != video_frame_size:
-                new_img = Image.new('RGB', video_frame_size)
-                new_img.paste(img, ((video_frame_size[0] - img.width) // 2, (video_frame_size[1] - img.height) // 2))
-                img = new_img
-
-            processed_clips.append(ImageClip(np.array(img)).set_duration(slide_duration))
-
-    total_video_duration = min(len(processed_clips) * max_duration_per_image, audio_clip.duration)
+    total_video_duration = len(processed_clips) * slide_duration
     total_loops = math.ceil(total_video_duration / (slide_duration * len(images_data)))
 
     final_clips = []
@@ -108,22 +125,28 @@ async def process_slideshow(image_urls, audio_url, http_session):
         final_clips.extend(processed_clips)
 
     try:
+        looped_audio_clip = audio_loop(audio_clip, duration=total_video_duration)
+
         async with aiofiles.tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmp_video:
             video_file_path = tmp_video.name
             video = concatenate_videoclips(final_clips, method="compose")
-            final_video = video.set_audio(audio_clip.subclip(0, total_video_duration))
-            final_video.write_videofile(video_file_path, codec="libx264", fps=24)
+            final_video = video.set_audio(looped_audio_clip)
+            final_video.write_videofile(video_file_path, codec="libx264", audio_codec="aac", fps=24)
             final_video.close()
-            return video_file_path, None
-        
+
     except Exception as e:
-        if audio_clip:
-            audio_clip.close()
         return None, str(e)
 
     finally:
+        if audio_clip:
+            audio_clip.close()
         if tmp_audio_path and os.path.exists(tmp_audio_path):
-            await asyncio.to_thread(os.remove, tmp_audio_path)
+            try:
+                await asyncio.to_thread(os.remove, tmp_audio_path)
+            except Exception as e:
+                print(f"Error removing temporary audio file: {e}")
+
+    return video_file_path, None
             
 def setup(bot):
     @bot.slash_command(
