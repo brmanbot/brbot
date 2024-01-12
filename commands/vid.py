@@ -123,7 +123,7 @@ def setup(bot):
             short_url = await shorten_url(url)
             if short_url:
                 added_by = f"{inter.user.name}#{inter.user.discriminator}"
-                await add_video_to_database(name, short_url, colour.lower(), url, added_by)
+                await add_video_to_database(name, short_url, colour.lower(), url, added_by, bot.video_manager)
                 bot.video_manager.video_lists[colour.lower()].append(short_url)
                 bot.video_manager.save_data()
                 await inter.followup.send(f"Saved `{short_url}` as `{name}` in `{colour}` database")
