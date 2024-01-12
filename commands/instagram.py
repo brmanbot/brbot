@@ -74,9 +74,8 @@ async def process_urls(ctx, urls, caption, session):
                 first_message = False
             else:
                 message_content = None
-
             file = disnake.File(fp=media_buffer, filename=filename)
-            await ctx.channel.send(content=message_content, file=file)
+            await ctx.channel.send(content=message_content, file=file, allowed_mentions=disnake.AllowedMentions(users=False))
             media_buffer.close()
 
 def setup(bot):
