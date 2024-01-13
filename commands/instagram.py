@@ -65,6 +65,11 @@ async def process_urls(ctx, urls, caption, session):
                 ephemeral=True
             )
 
+    def get_user_mentions(caption):
+        return re.findall(r'<@!?(\d+)>', caption)
+
+    user_ids_in_caption = get_user_mentions(caption) if caption else []
+
     results = await asyncio.gather(*[task for task in tasks if task is not None])
     first_message = True
     for media_buffer, filename in results:
@@ -75,7 +80,14 @@ async def process_urls(ctx, urls, caption, session):
             else:
                 message_content = None
             file = disnake.File(fp=media_buffer, filename=filename)
-            await ctx.channel.send(content=message_content, file=file, allowed_mentions=disnake.AllowedMentions(users=False))
+
+            mentioned_users = [ctx.guild.get_member(int(uid)) for uid in user_ids_in_caption if ctx.guild.get_member(int(uid))]
+
+            if ctx.author.id in [user.id for user in mentioned_users]:
+                mentioned_users.remove(ctx.author)
+            allowed_mentions = disnake.AllowedMentions(users=mentioned_users)
+
+            await ctx.channel.send(content=message_content, file=file, allowed_mentions=allowed_mentions)
             media_buffer.close()
 
 def setup(bot):
