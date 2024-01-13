@@ -1,7 +1,6 @@
 import os
 import aiofiles
 import disnake
-from disnake import AllowedMentions
 from disnake.ext import commands
 import aiohttp
 import io
@@ -181,11 +180,6 @@ def setup(bot):
 
         urls = {'url1': url1, **urls}
 
-        def get_user_mentions(caption):
-            return re.findall(r'<@!?(\d+)>', caption)
-
-        user_ids_in_caption = get_user_mentions(caption) if caption else []
-        
         for url_key in sorted(urls.keys()):
             original_url = urls[url_key]
             if not original_url:
@@ -219,8 +213,7 @@ def setup(bot):
                             async with aiofiles.open(video_file, 'rb') as f:
                                 file_content = await f.read()
                             file = disnake.File(fp=io.BytesIO(file_content), filename=os.path.basename(video_file))
-                            allowed_mentions = AllowedMentions.none() if ctx.author.id in user_ids_in_caption else AllowedMentions(users=[int(uid) for uid in user_ids_in_caption])
-                            await ctx.channel.send(content=message_content, file=file, allowed_mentions=AllowedMentions(users=False))
+                            await ctx.channel.send(content=message_content, file=file)
                             await asyncio.to_thread(os.remove, video_file)
                         except disnake.HTTPException as e:
                             await ctx.send(f"An error occurred while uploading the video: {e}", ephemeral=True)
@@ -241,8 +234,7 @@ def setup(bot):
                             else:
                                 message_content = None
                             file = disnake.File(fp=video_data, filename=file_name)
-                            allowed_mentions = AllowedMentions.none() if ctx.author.id in user_ids_in_caption else AllowedMentions(users=[int(uid) for uid in user_ids_in_caption])
-                            await ctx.channel.send(content=message_content, file=file, allowed_mentions=AllowedMentions(users=False))
+                            await ctx.channel.send(content=message_content, file=file)
                             video_data.close()
                         except disnake.HTTPException as e:
                             if e.status == 413:
@@ -253,3 +245,5 @@ def setup(bot):
                             await ctx.send(f"An unexpected error occurred: {e}", ephemeral=True)
                     else:
                         await ctx.channel.send(f"Failed to download the video. Original link: {original_url}", ephemeral=True)
+            else:
+                await ctx.followup.send(f"Failed to fetch TikTok content. Here's the original link: {original_url}", ephemeral=True)
