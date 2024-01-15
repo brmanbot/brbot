@@ -1,4 +1,5 @@
 import asyncio
+import re
 import disnake
 import time
 from utils import bot, has_role_check
@@ -94,21 +95,53 @@ class VideoActionsView(disnake.ui.View):
             button.disabled = True
             await interaction.followup.send("No available videos to re-roll.", ephemeral=True)
 
-    @disnake.ui.button(label="Info", style=disnake.ButtonStyle.primary,
-                       emoji="ℹ️", custom_id="info_video", row=0)
+    @disnake.ui.button(label="Info", style=disnake.ButtonStyle.primary, emoji="ℹ️", custom_id="info_video", row=0)
     async def info_button(self, button, interaction):
         await interaction.response.defer()
         video_url = self.video_url
         if video_url.startswith("🏆 "):
             video_url = video_url[2:]
-        result = await self.bot.video_manager.fetch_video_info(video_url)
-        if result is not None:
-            name, colour, added_by = result
-            username = added_by.split('#')[0]
-            info_message_content = (
-                f"`{name}` found in the `{colour}` database with the matching URL, added by `{username}`.")
+        video_info = await self.bot.video_manager.fetch_video_info(video_url)
 
-            info_message = await interaction.followup.send(info_message_content)
+        if video_info:
+            color_map = {
+                "yellow": 0xFFFF00,
+                "red": 0xFF0000,
+                "green": 0x00FF00
+            }
+            color_name = video_info['color'].lower()
+            hex_color = color_map.get(color_name, 0x000000)
+
+            added_by = video_info['added_by'].split('#')[0] if '#' in video_info['added_by'] else video_info['added_by']
+            date_added = video_info.get('date_added', "before 15/01/2024")
+
+            embed = disnake.Embed(
+                description=f"**Name:** `{video_info['name']}`\n**Colour:** `{video_info['color']}`\n**Added by:** `{added_by}`",
+                color=hex_color
+            )
+
+            if video_info.get('tiktok_original_link'):
+                tiktok_value = (
+                    f"[TikTok original URL]({video_info['tiktok_original_link']})\n"
+                    f"[Author]({video_info['tiktok_author_link']})\n\n"
+                    f"[TikTok sound URL]({video_info['tiktok_sound_link']})"
+                )
+                video_id_match = re.findall(r'video/(\d+)', video_info['tiktok_original_link'])
+                if video_id_match:
+                    video_id = video_id_match[0]
+                    tiktok_value += f"\n[TikTok sound download](https://www.tikwm.com/video/media/play/{video_id}.mp4)"
+                embed.add_field(name="TikTok", value=tiktok_value, inline=True)
+
+            if video_info.get('insta_original_link'):
+                insta_value = f"[Instagram URL]({video_info['insta_original_link']})"
+                embed.add_field(name="Instagram", value=insta_value, inline=True)
+
+            misc_value = f"[Shortened URL]({video_info['url']})\n[Discord backup URL]({video_info['original_url']})"
+            embed.add_field(name="Misc.", value=misc_value, inline=True)
+
+            embed.set_footer(text=f"Date added: {date_added}")
+
+            info_message = await interaction.followup.send(embed=embed)
 
             if info_message is not None:
                 self.info_message_channel_id = info_message.channel.id
@@ -116,6 +149,8 @@ class VideoActionsView(disnake.ui.View):
 
             button.disabled = True
             await interaction.message.edit(view=self)
+        else:
+            await interaction.followup.send("Video not found in database.")
 
     @disnake.ui.button(label="Delete", style=disnake.ButtonStyle.danger, emoji="🗑️",
                        custom_id="delete_video", row=0)
