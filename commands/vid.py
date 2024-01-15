@@ -2,6 +2,7 @@ import re
 import aiosqlite
 import disnake
 import io
+from datetime import datetime
 from disnake import ApplicationCommandInteraction
 from utils import bot, autocomp_colours, shorten_url, has_role_check
 from database import add_video_to_database
@@ -10,10 +11,18 @@ from private_config import TIKTOK_ARCHIVE_CHANNEL, RAPID_API_KEY
 
 async def fetch_content(session, url, content_type):
     headers = {"User-Agent": "MyBot"}
+    tiktok_author_link = tiktok_original_link = tiktok_sound_link = None
     if content_type == "tiktok":
         api_url = "https://api.tik.fail/api/grab"
         data = {"url": url}
         response = await session.post(api_url, headers=headers, data=data)
+        if response.status == 200:
+            data = await response.json()
+            if data.get("success"):
+                tiktok_author_link = data["data"]["metadata"]["AccountProfileURL"]
+                tiktok_original_link = data["data"]["metadata"]["VideoURL"]
+                tiktok_sound_link = data["data"]["metadata"]["AudioURL"]
+                return data["data"]["download"]["video"].get("NoWM", {}).get("url"), tiktok_author_link, tiktok_original_link, tiktok_sound_link
     elif content_type == "instagram":
         api_url = "https://instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com/"
         querystring = {"url": url}
@@ -22,14 +31,13 @@ async def fetch_content(session, url, content_type):
             "X-RapidAPI-Host": "instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com"
         })
         response = await session.get(api_url, headers=headers, params=querystring)
+        if response.status == 200:
+            data = await response.json()
+            if isinstance(data, list) and data and "url" in data[0]:
+                return data[0]["url"], None, None, None
+        return url, None, None, None
 
-    if response.status == 200:
-        data = await response.json()
-        if content_type == "instagram" and isinstance(data, list) and data and "url" in data[0]:
-            return data[0]["url"]
-        elif content_type == "tiktok" and data.get("success"):
-            return data["data"]["download"]["video"].get("NoWM", {}).get("url")
-    return None
+    return None, None, None, None
 
 async def download_video(session, video_url):
     async with session.get(video_url) as response:
@@ -83,9 +91,12 @@ def setup(bot):
         discord_url = url.startswith("https://cdn.discordapp.com/attachments/") or url.startswith(
             "https://media.discordapp.net/attachments/")
 
-        if tiktok_url or instagram_url:
-            content_type = "tiktok" if tiktok_url else "instagram"
-            video_url = await fetch_content(bot.http_session, url, content_type)
+        date_added = datetime.now().strftime("%d/%m/%Y")
+        tiktok_author_link = tiktok_original_link = tiktok_sound_link = None
+
+        if tiktok_url or instagram_url or discord_url:
+            content_type = "tiktok" if tiktok_url else "instagram" if instagram_url else "discord"
+            video_url, tiktok_author_link, tiktok_original_link, tiktok_sound_link = await fetch_content(bot.http_session, url, content_type)
             if video_url:
                 video_data = await download_video(bot.http_session, video_url)
                 if video_data:
@@ -102,7 +113,15 @@ def setup(bot):
                         short_url = await shorten_url(resolved_url)
                         if short_url:
                             added_by = f"{inter.user.name}#{inter.user.discriminator}"
-                            await add_video_to_database(name, short_url, colour.lower(), resolved_url, added_by, bot.video_manager)
+                            original_url = resolved_url
+                            if tiktok_url:
+                                insta_original_link = None
+                            elif instagram_url:
+                                insta_original_link = url
+                            elif discord_url:
+                                tiktok_author_link = tiktok_original_link = tiktok_sound_link = None
+
+                            await add_video_to_database(name, short_url, colour.lower(), original_url, added_by, tiktok_author_link, tiktok_original_link, tiktok_sound_link, insta_original_link, date_added, bot.video_manager)
                             bot.video_manager.video_lists[colour.lower()].append(short_url)
                             bot.video_manager.save_data()
                             await inter.followup.send(f"Saved `{short_url}` as `{name}` in `{colour}` database")
@@ -123,7 +142,7 @@ def setup(bot):
             short_url = await shorten_url(url)
             if short_url:
                 added_by = f"{inter.user.name}#{inter.user.discriminator}"
-                await add_video_to_database(name, short_url, colour.lower(), url, added_by, bot.video_manager)
+                await add_video_to_database(name, short_url, colour.lower(), url, added_by, None, None, None, None, date_added, bot.video_manager)
                 bot.video_manager.video_lists[colour.lower()].append(short_url)
                 bot.video_manager.save_data()
                 await inter.followup.send(f"Saved `{short_url}` as `{name}` in `{colour}` database")

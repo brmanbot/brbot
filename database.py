@@ -28,6 +28,11 @@ async def initialize_database():
                     color TEXT,
                     original_url TEXT,
                     added_by TEXT,
+                    tiktok_author_link TEXT,
+                    tiktok_original_link TEXT,
+                    tiktok_sound_link TEXT,
+                    insta_original_link TEXT,
+                    date_added TEXT,
                     is_hall_of_fame BOOLEAN DEFAULT 0
                 )
             """)
@@ -36,10 +41,14 @@ async def initialize_database():
         logging.error(f"Error initializing the database: {e}")
 
 
-async def add_video_to_database(name, url, color, original_url, added_by, video_manager):
+async def add_video_to_database(name, url, color, original_url, added_by, tiktok_author_link, tiktok_original_link, tiktok_sound_link, insta_original_link, date_added, video_manager):
     async with aiosqlite.connect(DATABASE_NAME) as db:
-        query = "INSERT INTO videos (name, url, color, original_url, added_by) VALUES (?, ?, ?, ?, ?)"
-        values = (name, url, color, original_url, added_by)
+        query = """
+            INSERT INTO videos 
+            (name, url, color, original_url, added_by, tiktok_author_link, tiktok_original_link, tiktok_sound_link, insta_original_link, date_added) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        values = (name, url, color, original_url, added_by, tiktok_author_link, tiktok_original_link, tiktok_sound_link, insta_original_link, date_added)
         try:
             await db.execute(query, values)
             await db.commit()
@@ -47,7 +56,6 @@ async def add_video_to_database(name, url, color, original_url, added_by, video_
                 video_manager.video_lists[color].append(url)
                 fisher_yates_shuffle(video_manager.video_lists[color])
                 video_manager.save_data()
-
         except aiosqlite.IntegrityError as e:
             logging.error(f"Error adding video to the database: {e}")
 
