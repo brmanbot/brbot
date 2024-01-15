@@ -16,6 +16,22 @@ def fisher_yates_shuffle(arr):
         j = random.randint(0, i)
         arr[i], arr[j] = arr[j], arr[i]
 
+async def update_database_schema():
+    alter_commands = [
+        "ALTER TABLE videos ADD COLUMN tiktok_author_link TEXT",
+        "ALTER TABLE videos ADD COLUMN tiktok_original_link TEXT",
+        "ALTER TABLE videos ADD COLUMN tiktok_sound_link TEXT",
+        "ALTER TABLE videos ADD COLUMN insta_original_link TEXT",
+        "ALTER TABLE videos ADD COLUMN date_added TEXT"
+    ]
+
+    async with aiosqlite.connect(DATABASE_NAME) as db:
+        for command in alter_commands:
+            try:
+                await db.execute(command)
+            except aiosqlite.OperationalError as e:
+                logging.error(f"Error updating the database schema: {e}")
+        await db.commit()
 
 async def initialize_database():
     try:
