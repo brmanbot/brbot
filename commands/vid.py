@@ -92,10 +92,9 @@ def setup(bot):
             "https://media.discordapp.net/attachments/")
 
         date_added = datetime.now().strftime("%d/%m/%Y")
-        tiktok_author_link = tiktok_original_link = tiktok_sound_link = None
 
-        if tiktok_url or instagram_url or discord_url:
-            content_type = "tiktok" if tiktok_url else "instagram" if instagram_url else "discord"
+        if tiktok_url or instagram_url:
+            content_type = "tiktok" if tiktok_url else "instagram"
             video_url, tiktok_author_link, tiktok_original_link, tiktok_sound_link = await fetch_content(bot.http_session, url, content_type)
             if video_url:
                 video_data = await download_video(bot.http_session, video_url)
@@ -114,12 +113,7 @@ def setup(bot):
                         if short_url:
                             added_by = f"{inter.user.name}#{inter.user.discriminator}"
                             original_url = resolved_url
-                            if tiktok_url:
-                                insta_original_link = None
-                            elif instagram_url:
-                                insta_original_link = url
-                            elif discord_url:
-                                tiktok_author_link = tiktok_original_link = tiktok_sound_link = None
+                            insta_original_link = url if instagram_url else None
 
                             await add_video_to_database(name, short_url, colour.lower(), original_url, added_by, tiktok_author_link, tiktok_original_link, tiktok_sound_link, insta_original_link, date_added, bot.video_manager)
                             bot.video_manager.video_lists[colour.lower()].append(short_url)
