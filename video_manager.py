@@ -175,6 +175,7 @@ class VideoManager:
                 filtered_videos = [video for video in self.video_lists[color] if current_time - self.played_videos.get(video, 0) > cooldown]
                 available_videos.extend(filtered_videos)
 
+        fisher_yates_shuffle(available_videos)
         return available_videos
     
     async def _get_videos_for_color(self, color, current_time, cooldown):
