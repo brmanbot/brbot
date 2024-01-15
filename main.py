@@ -4,7 +4,7 @@ from disnake.ext import commands
 
 from config import ALLOWED_USER_ID, BOSSMANROLE_ID, BOT_TOKEN, INTENTS, GUILD_IDS
 from utils import CustomBot, VideoManager, autocomp_colours, load_setup_data, setup_data
-from database import initialize_database, synchronize_cache_with_database, update_database_schema
+from database import initialize_database, synchronize_cache_with_database
 
 import pkgutil
 
@@ -27,7 +27,6 @@ async def setup_reaction_handler_on_restart(bot):
 async def main():
     bot = CustomBot(intents=INTENTS, test_guilds=GUILD_IDS)
     print("Bot created...")
-    await update_database_schema()
     await initialize_database()
     await setup_video_manager(bot)
     await synchronize_cache_with_database()
