@@ -45,11 +45,39 @@ async def download_video(session, video_url):
             return io.BytesIO(await response.read())
         return None
 
-async def video_exists(name, url, db_path="videos.db"):
-    query = "SELECT * FROM videos WHERE name = ? OR url = ?"
+async def video_exists(name, shortened_url, original_discord_url, tiktok_original_link, insta_original_link, db_path="videos.db"):
+    query = """
+    SELECT name, url, original_url, tiktok_original_link, insta_original_link 
+    FROM videos 
+    WHERE name = ? OR url = ? OR original_url = ? OR tiktok_original_link = ? OR insta_original_link = ?
+    """
+    params = (name, shortened_url, original_discord_url, tiktok_original_link, insta_original_link)
+    conflict_details = []
     async with aiosqlite.connect(db_path) as db:
-        async with db.execute(query, (name, url)) as cursor:
-            return await cursor.fetchone() is not None
+        async with db.execute(query, params) as cursor:
+            rows = await cursor.fetchall()
+            for row in rows:
+                video_name, video_url, original_url, tiktok_link, insta_link = row
+                if video_name == name:
+                    conflict_details.append(("Name", video_url))
+                if shortened_url and video_url == shortened_url:
+                    conflict_details.append(("Shortened URL", video_url))
+                if original_discord_url and original_url == original_discord_url:
+                    conflict_details.append(("Discord URL", video_url))
+                if tiktok_original_link and tiktok_link == tiktok_original_link:
+                    conflict_details.append(("TikTok URL", video_url))
+                if insta_original_link and insta_link == insta_original_link:
+                    conflict_details.append(("Instagram URL", video_url))
+    return conflict_details
+
+async def create_conflict_message(conflict_details, video_manager):
+    conflict_messages = []
+    for conflict_type, url in conflict_details:
+        video_info = await video_manager.fetch_video_info(url)
+        if video_info:
+            video_name = video_info['name']
+            conflict_messages.append(f"{conflict_type}: [{video_name}]({url})")
+    return "\n".join(conflict_messages)
 
 def setup(bot):
     @bot.slash_command(
@@ -79,6 +107,8 @@ def setup(bot):
         ]
     )
     async def vid(inter, colour: str, name: str, url: str):
+        short_url = tiktok_original_link = insta_original_link = None
+
         if not await has_role_check(inter):
             await inter.response.send_message("You do not have permission to use this command.", ephemeral=True)
             return
@@ -90,47 +120,60 @@ def setup(bot):
             r'https?://www\.instagram\.com/([a-zA-Z0-9_.]+/)?(p|reel)/[a-zA-Z0-9-_]+', url)
         discord_url = url.startswith("https://cdn.discordapp.com/attachments/") or url.startswith(
             "https://media.discordapp.net/attachments/")
-
         date_added = datetime.now().strftime("%d/%m/%Y")
 
         if tiktok_url or instagram_url:
             content_type = "tiktok" if tiktok_url else "instagram"
             video_url, tiktok_author_link, tiktok_original_link, tiktok_sound_link = await fetch_content(bot.http_session, url, content_type)
-            if video_url:
-                video_data = await download_video(bot.http_session, video_url)
-                if video_data:
-                    if await video_exists(name, url):
-                        await inter.followup.send("A video with the same name or URL already exists.", ephemeral=True)
-                        return
 
-                    upload_channel = bot.get_channel(int(TIKTOK_ARCHIVE_CHANNEL))
-                    if upload_channel:
-                        video_message = await upload_channel.send(
-                            file=disnake.File(fp=video_data, filename=f"{name}.mp4")
-                        )
-                        resolved_url = video_message.attachments[0].url
-                        short_url = await shorten_url(resolved_url)
-                        if short_url:
-                            added_by = f"{inter.user.name}#{inter.user.discriminator}"
-                            original_url = resolved_url
-                            insta_original_link = url if instagram_url else None
+            if not video_url:
+                await inter.followup.send("Could not fetch the video URL.", ephemeral=True)
+                return
 
-                            await add_video_to_database(name, short_url, colour.lower(), original_url, added_by, tiktok_author_link, tiktok_original_link, tiktok_sound_link, insta_original_link, date_added, bot.video_manager)
-                            bot.video_manager.video_lists[colour.lower()].append(short_url)
-                            bot.video_manager.save_data()
-                            await inter.followup.send(f"Saved `{short_url}` as `{name}` in `{colour}` database")
-                        else:
-                            await inter.followup.send("Failed to shorten the URL.", ephemeral=True)
-                    else:
-                        await inter.followup.send("Invalid upload channel ID.", ephemeral=True)
-                else:
-                    await inter.followup.send(f"Failed to download {content_type} video.", ephemeral=True)
+            if instagram_url:
+                insta_original_link = url
+                tiktok_original_link = None
             else:
-                await inter.followup.send(f"Failed to fetch {content_type} content.", ephemeral=True)
+                insta_original_link = None
+
+            conflict_details = await video_exists(name, short_url, url, tiktok_original_link, insta_original_link)
+            conflict_message = await create_conflict_message(conflict_details, bot.video_manager)
+            if conflict_message:
+                await inter.followup.send(f"Video(s) exist with same information:\n{conflict_message}", ephemeral=True)
+                return
+                
+            video_data = await download_video(bot.http_session, video_url)
+            if video_data:
+                upload_channel = bot.get_channel(int(TIKTOK_ARCHIVE_CHANNEL))
+                if upload_channel:
+                    video_message = await upload_channel.send(
+                        file=disnake.File(fp=video_data, filename=f"{name}.mp4")
+                    )
+                    resolved_url = video_message.attachments[0].url
+                    short_url = await shorten_url(resolved_url)
+
+                    if short_url:
+                        added_by = f"{inter.user.name}#{inter.user.discriminator}"
+                        original_url = resolved_url
+                        insta_original_link = url if instagram_url else None
+
+                        await add_video_to_database(name, short_url, colour.lower(), original_url, added_by, tiktok_author_link, tiktok_original_link, tiktok_sound_link, insta_original_link, date_added, bot.video_manager)
+                        bot.video_manager.video_lists[colour.lower()].append(short_url)
+                        bot.video_manager.save_data()
+                        await inter.followup.send(f"Saved `{short_url}` as `{name}` in `{colour}` database")
+                    else:
+                        await inter.followup.send("Failed to shorten the URL.", ephemeral=True)
+                else:
+                    await inter.followup.send("Invalid upload channel ID.", ephemeral=True)
+            else:
+                await inter.followup.send("Failed to download video.", ephemeral=True)
 
         elif discord_url:
-            if await video_exists(name, url):
-                await inter.followup.send("A video with the same name or URL already exists.", ephemeral=True)
+            short_url = await shorten_url(url)
+            conflict_details = await video_exists(name, short_url, url, tiktok_original_link, insta_original_link)
+            conflict_message = await create_conflict_message(conflict_details, bot.video_manager)
+            if conflict_message:
+                await inter.followup.send(f"Video(s) exist with same information:\n{conflict_message}", ephemeral=True)
                 return
 
             short_url = await shorten_url(url)
@@ -141,11 +184,10 @@ def setup(bot):
                 bot.video_manager.save_data()
                 await inter.followup.send(f"Saved `{short_url}` as `{name}` in `{colour}` database")
             else:
-                await inter.followup.send("Error creating short URL", ephemeral=True)
+                await inter.followup.send("Error creating short URL.", ephemeral=True)
 
         else:
-            await inter.followup.send(
-                "Invalid URL. Please provide a valid TikTok, Instagram, or Discord video URL.", ephemeral=True)
+            await inter.followup.send("Invalid URL. Please provide a valid TikTok, Instagram, or Discord video URL.", ephemeral=True)
 
     @vid.autocomplete("colour")
     async def vid_autocomplete_colour(inter: ApplicationCommandInteraction, user_input: str):
