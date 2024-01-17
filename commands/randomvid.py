@@ -19,7 +19,7 @@ class ConfirmView(disnake.ui.View):
         video_info = await self.original_view.bot.video_manager.fetch_video_info(
             self.original_view.video_url)
         if video_info is not None:
-            video_name, _, _ = video_info
+            video_name = video_info['name']
             await self.original_view.bot.video_manager.remove_video(
                 self.original_view.video_url, 'url', MOD_LOG, deleted_by_user)
             await interaction.response.send_message(
@@ -164,7 +164,7 @@ class VideoActionsView(disnake.ui.View):
             video_url = video_url[2:]
         video_info = await self.bot.video_manager.fetch_video_info(video_url)
         if video_info is not None:
-            video_name, _, _ = video_info
+            video_name = video_info['name']
             confirm_view = ConfirmView(self, self.ctx)
             confirm_message = await interaction.response.send_message("Are you sure you want to delete this video?", view=confirm_view, ephemeral=True)
             confirm_view.message = confirm_message
