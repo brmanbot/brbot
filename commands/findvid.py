@@ -73,18 +73,18 @@ def setup(bot):
 
         if video_info.get('tiktok_original_link'):
             tiktok_value = (
-                f"[TikTok original URL]({video_info['tiktok_original_link']})\n"
-                f"[Author]({video_info['tiktok_author_link']})\n\n"
-                f"[TikTok sound URL]({video_info['tiktok_sound_link']})"
+                f"[Author]({video_info['tiktok_author_link']})\n"
+                f"[Original URL]({video_info['tiktok_original_link']})\n"
+                f"[Sound URL]({video_info['tiktok_sound_link']})\n"
             )
             video_id_match = re.findall(r'video/(\d+)', video_info['tiktok_original_link'])
             if video_id_match:
                 video_id = video_id_match[0]
-                tiktok_value += f"\n[TikTok sound download](https://www.tikwm.com/video/media/play/{video_id}.mp4)"
+                tiktok_value += f"[Source URL](https://www.tikwm.com/video/media/play/{video_id}.mp4)"
             embed.add_field(name="TikTok", value=tiktok_value, inline=True)
 
         if video_info.get('insta_original_link'):
-            insta_value = f"[Instagram URL]({video_info['insta_original_link']})"
+            insta_value = f"[Original URL]({video_info['insta_original_link']})"
             embed.add_field(name="Instagram", value=insta_value, inline=True)
 
         misc_value = f"[Shortened URL]({video_info['url']})\n[Discord backup URL]({video_info['original_url']})"
