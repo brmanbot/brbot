@@ -41,7 +41,7 @@ async def process_urls(ctx, urls, caption, session):
         }
 
         try:
-            async with session.get(api_url, headers=headers, params=querystring, timeout=10) as response:  # Added timeout
+            async with session.get(api_url, headers=headers, params=querystring, timeout=10) as response:
                 if response.status == 200:
                     data = await response.json()
 
@@ -68,6 +68,7 @@ async def process_urls(ctx, urls, caption, session):
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
     first_message = True
+    
     for result in results:
         if isinstance(result, Exception):
             if isinstance(result, asyncio.TimeoutError):
@@ -76,15 +77,15 @@ async def process_urls(ctx, urls, caption, session):
                 await ctx.send(f"An error occurred: {result}", ephemeral=True)
             continue
 
-
         media_buffer, filename = result
         if media_buffer and filename:
             if first_message:
                 message_content = f"{ctx.author.mention}: {caption}" if caption else f"{ctx.author.mention} used /insta"
                 first_message = False
-                await ctx.channel.send(content=message_content)
+            else:
+                message_content = None
             file = disnake.File(fp=media_buffer, filename=filename)
-            await ctx.channel.send(file=file)
+            await ctx.channel.send(content=message_content, file=file)
             media_buffer.close()
 
 def setup(bot):
