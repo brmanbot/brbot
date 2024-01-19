@@ -82,45 +82,57 @@ async def get_hall_of_fame_videos():
 async def synchronize_cache_with_database():
     cache_file_path = "video_data.json"
     db_path = "videos.db"
-    
+    conflicts = []
+
     async with aiosqlite.connect(db_path) as db:
-        
         query = "SELECT url, COUNT(*) c FROM videos GROUP BY url HAVING c > 1"
         cursor = await db.execute(query)
         duplicates = await cursor.fetchall()
 
-        for url, _ in duplicates:
-            id_query = "SELECT id FROM videos WHERE url = ?"
-            cursor = await db.execute(id_query, (url,))
-            ids = [row[0] for row in await cursor.fetchall()]
-            for id_to_delete in ids[1:]:
-                delete_query = "DELETE FROM videos WHERE id = ?"
-                await db.execute(delete_query, (id_to_delete,))
+        if duplicates:
+            for url, _ in duplicates:
+                id_query = "SELECT id, name, color, added_by FROM videos WHERE url = ?"
+                cursor = await db.execute(id_query, (url,))
+                ids = [(row[0], row[1], row[2], row[3]) for row in await cursor.fetchall()]
+                conflicts.append(f"Duplicate URL found: {url}. Keeping ID: {ids[0][0]} (Name: {ids[0][1]}, Color: {ids[0][2]}, Added by: {ids[0][3]}), removing others.")
+                for id_to_delete, _, _, _ in ids[1:]:
+                    delete_query = "DELETE FROM videos WHERE id = ?"
+                    await db.execute(delete_query, (id_to_delete,))
 
-        await db.commit()
+            await db.commit()
 
         db_videos = {}
         for color in ["green", "red", "yellow"]:
-            async with db.execute("SELECT url FROM videos WHERE LOWER(color) = ?", (color.lower(),)) as cursor:
-                db_videos[color] = [row[0] for row in await cursor.fetchall()]
+            async with db.execute("SELECT url, name FROM videos WHERE LOWER(color) = ?", (color.lower(),)) as cursor:
+                db_videos[color] = {row[0]: row[1] for row in await cursor.fetchall()}
 
     if os.path.exists(cache_file_path):
         with open(cache_file_path, "r") as file:
             cache_data = json.load(file)
-            cache_data["video_lists"] = {color.lower(): urls for color, urls in cache_data["video_lists"].items()}
     else:
-        cache_data = {"video_lists": {color: [] for color in ["green", "red", "yellow"]}, "last_reset": {}, "played_videos": {}}
+        cache_data = {"video_lists": {color: [] for color in ["green", "red", "yellow"]}, "last_reset": {}, "played_videos": {}, "hall_of_fame": []}
 
-    for color, urls in db_videos.items():
+    for color, db_urls in db_videos.items():
         cached_urls = set(cache_data["video_lists"].get(color, []))
-        for url in urls:
-            if url not in cached_urls:
-                cache_data["video_lists"].setdefault(color, []).append(url)
+        db_url_set = set(db_urls.keys())
+        added = db_url_set - cached_urls
+        removed = cached_urls - db_url_set
 
-        cache_data["video_lists"][color] = list(set(cache_data["video_lists"][color]))
+        if added:
+            added_details = [f"{url} (Name: {db_urls[url]})" for url in added]
+            conflicts.append(f"Added to cache in '{color}': {added_details}")
+        if removed:
+            removed_details = [url for url in removed]
+            conflicts.append(f"Removed from cache in '{color}': {removed_details}")
+
+        cache_data["video_lists"][color] = list(db_url_set)
 
     with open(cache_file_path, "w") as file:
         json.dump(cache_data, file, indent=4)
 
-    print("Cache and database synchronized.")
-
+    if conflicts:
+        print("Conflicts detected and resolved during synchronization:")
+        for conflict in conflicts:
+            print(conflict)
+    else:
+        print("No conflicts found. Database and cache are synchronized.")
