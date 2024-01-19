@@ -78,7 +78,7 @@ class VideoManager:
                 values = (identifier, color)
                 async with db.execute(query, values) as cursor:
                     result = await cursor.fetchone()
-                    if result is not None:
+                    if result:
                         removed_name = result[1]
                         removed_url = result[2]
                         color_removed_from = result[3]
@@ -88,18 +88,19 @@ class VideoManager:
                         await db.commit()
                         break
 
-        if removed_url is not None and removed_name is not None:
-            if color_removed_from in self.video_lists:
+        if removed_url and removed_name:
+            if color_removed_from in self.video_lists and removed_url in self.video_lists[color_removed_from]:
                 self.video_lists[color_removed_from].remove(removed_url)
                 fisher_yates_shuffle(self.video_lists[color_removed_from])
 
             self.played_videos.pop(removed_url, None)
-            self.hall_of_fame.remove(removed_url) if removed_url in self.hall_of_fame else None
+
+            if removed_url in self.hall_of_fame:
+                self.hall_of_fame.remove(removed_url)
 
             username_parts = added_by.split("#")
             username = username_parts[0]
             discriminator = username_parts[1] if len(username_parts) > 1 else None
-
             user = next((u for u in self.bot.users if u.name == username and (u.discriminator == discriminator if discriminator else True)), None)
             if user and user.id != deleted_by.id:
                 channel = self.bot.get_channel(MOD_LOG)
