@@ -10,9 +10,9 @@ from utils import bot
 from PIL import Image, ImageOps
 from moviepy.editor import ImageClip, concatenate_videoclips, AudioFileClip, concatenate_audioclips
 from moviepy.audio.fx.all import audio_loop
-import tempfile
 import numpy as np
 import math
+from concurrent.futures import ThreadPoolExecutor
 
 async def resolve_short_url(url, http_session):
     async with http_session.head(url, allow_redirects=True) as response:
@@ -51,18 +51,12 @@ async def create_audio_clip(audio_data):
     except Exception as e:
         return None, None, str(e)
 
-def create_image_clips(images_data, video_frame_size, slide_duration):
-    clips = []
-    for img in images_data:
-        if img is None:
-            continue
-
-        img = img.convert('RGB')
-
+def process_image(img, video_frame_size, slide_duration):
+    try:
         aspect_ratio = img.width / img.height
         new_width = video_frame_size[0]
         new_height = int(new_width / aspect_ratio)
-        
+
         img = img.resize((new_width, new_height), Image.LANCZOS)
         if new_height < video_frame_size[1]:
             padding_top = (video_frame_size[1] - new_height) // 2
@@ -70,7 +64,20 @@ def create_image_clips(images_data, video_frame_size, slide_duration):
             img = ImageOps.expand(img, border=(0, padding_top, 0, padding_bottom), fill='black')
 
         img_clip = ImageClip(np.array(img)).set_duration(slide_duration)
-        clips.append(img_clip)
+        return img_clip
+    except Exception as e:
+        print(f"Error processing image: {e}")
+        return None
+
+def create_image_clips(images_data, video_frame_size, slide_duration):
+    clips = []
+    with ThreadPoolExecutor() as executor:
+        futures = [executor.submit(process_image, img_data, video_frame_size, slide_duration) 
+                   for img_data in images_data if img_data is not None]
+        for future in futures:
+            clip = future.result()
+            if clip:
+                clips.append(clip)
     return clips
 
 def calculate_optimal_video_size(images_data, max_width=1920, max_height=1080):
@@ -111,7 +118,7 @@ async def process_slideshow(image_urls, audio_url, http_session):
     slide_duration = 3
     max_duration_per_image = 6
 
-    if not images_data:
+    if not images_data or all(img is None for img in images_data):
         return None, "No images to process."
 
     video_frame_size = calculate_optimal_video_size(images_data)
@@ -142,7 +149,7 @@ async def process_slideshow(image_urls, audio_url, http_session):
             audio_clip.close()
         if tmp_audio_path and os.path.exists(tmp_audio_path):
             try:
-                await asyncio.to_thread(os.remove, tmp_audio_path)
+                os.remove(tmp_audio_path)
             except Exception as e:
                 print(f"Error removing temporary audio file: {e}")
 
