@@ -60,7 +60,7 @@ class VideoActionsView(disnake.ui.View):
         message = await ctx.channel.fetch_message(message_id)
         view = bot.active_videos.get(message.id)
         if view is not None:
-            view.disable_all_buttons()
+            view.clear_items()
             await message.edit(view=view)
             del bot.active_videos[message.id]
 
