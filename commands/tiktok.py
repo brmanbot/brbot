@@ -257,6 +257,8 @@ def setup(bot):
                 if video_id_match:
                     video_id = video_id_match.group(1)
                     backup_url = f"https://www.tikwm.com/video/media/play/{video_id}.mp4"
+                    print(f"Attempting backup method for video ID {video_id} with URL: {backup_url}")  # Debug print
+
                     video_data = await download_media(backup_url, bot.http_session)
 
                     if video_data:
@@ -278,6 +280,7 @@ def setup(bot):
                         except Exception as e:
                             await ctx.send(f"An unexpected error occurred: {e}", ephemeral=True)
                     else:
-                        await ctx.channel.send(f"Failed to download the video using the backup method. Original link: {original_url}", ephemeral=True)
+                        print(f"Failed to download the video using the backup method. URL: {backup_url}")  # Debug print
                 else:
+                    print(f"No valid video ID found in URL: {resolved_url}")  # Debug print
                     await ctx.channel.send(f"Failed to fetch TikTok content and could not find a valid video ID in the URL. Here's the original link: {original_url}", ephemeral=True)
