@@ -23,6 +23,19 @@ async def fetch_content(session, url, content_type):
                 tiktok_original_link = data["data"]["metadata"]["VideoURL"]
                 tiktok_sound_link = data["data"]["metadata"]["AudioURL"]
                 return data["data"]["download"]["video"].get("NoWM", {}).get("url"), tiktok_author_link, tiktok_original_link, tiktok_sound_link
+            else:
+                video_id_match = re.search(r'/video/(\d+)', url)
+                author_match = re.search(r'https?://www\.tiktok\.com/@([^/]+)/', url)
+                if video_id_match and author_match:
+                    video_id = video_id_match.group(1)
+                    author_username = author_match.group(1)
+                    backup_video_url = f"https://www.tikwm.com/video/media/play/{video_id}.mp4"
+                    backup_sound_url = f"https://www.tikwm.com/video/music/{video_id}.mp3"
+                    tiktok_author_link = f"https://www.tiktok.com/@{author_username}/"
+                    backup_response = await session.get(backup_video_url, headers=headers)
+                    if backup_response.status == 200:
+                        return backup_video_url, tiktok_author_link, url, backup_sound_url
+        return None, None, None, None
     elif content_type == "instagram":
         api_url = "https://instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com/"
         querystring = {"url": url}

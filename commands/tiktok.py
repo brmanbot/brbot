@@ -253,4 +253,31 @@ def setup(bot):
                     else:
                         await ctx.channel.send(f"Failed to download the video. Original link: {original_url}", ephemeral=True)
             else:
-                await ctx.followup.send(f"Failed to fetch TikTok content. Here's the original link: {original_url}", ephemeral=True)
+                video_id_match = re.search(r'/video/(\d+)', resolved_url)
+                if video_id_match:
+                    video_id = video_id_match.group(1)
+                    backup_url = f"https://www.tikwm.com/video/media/play/{video_id}.mp4"
+                    video_data = await download_media(backup_url, bot.http_session)
+
+                    if video_data:
+                        try:
+                            file_name = f"{video_id}.mp4"
+                            if first_message:
+                                message_content = f"{ctx.author.mention}: {caption}" if caption else f"{ctx.author.mention} used /tiktok"
+                                first_message = False
+                            else:
+                                message_content = None
+                            file = disnake.File(fp=video_data, filename=file_name)
+                            await ctx.channel.send(content=message_content, file=file)
+                            video_data.close()
+                        except disnake.HTTPException as e:
+                            if e.status == 413:
+                                await ctx.send("The video file is too large to upload.", ephemeral=True)
+                            else:
+                                await ctx.send(f"An error occurred while uploading the video: {e}", ephemeral=True)
+                        except Exception as e:
+                            await ctx.send(f"An unexpected error occurred: {e}", ephemeral=True)
+                    else:
+                        await ctx.channel.send(f"Failed to download the video using the backup method. Original link: {original_url}", ephemeral=True)
+                else:
+                    await ctx.channel.send(f"Failed to fetch TikTok content and could not find a valid video ID in the URL. Here's the original link: {original_url}", ephemeral=True)
