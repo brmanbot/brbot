@@ -99,7 +99,7 @@ def calculate_optimal_video_size(images_data, max_width=1920, max_height=1080):
 
     return width, height
 
-async def process_slideshow(image_urls, audio_url, http_session):
+async def process_slideshow(image_urls, audio_url, http_session, slideshow_length=3):
     image_data_coroutines = [download_media(url, http_session) for url in image_urls]
     image_data_results = await asyncio.gather(*image_data_coroutines)
     images_data = [Image.open(io.BytesIO(result.getvalue())) if result else None for result in image_data_results]
@@ -115,7 +115,7 @@ async def process_slideshow(image_urls, audio_url, http_session):
     if not audio_clip:
         return None, "Audio clip creation failed."
 
-    slide_duration = 3
+    slide_duration = slideshow_length
     max_duration_per_image = 6
 
     if not images_data or all(img is None for img in images_data):
@@ -171,17 +171,32 @@ def setup(bot):
                 "Replace the `@user used /tiktok` message with your own.",
                 type=disnake.OptionType.string,
                 required=False
+            ),
+            disnake.Option(
+                "slideshow_length",
+                "Length of each slide in the slideshow (in seconds). Default is 3 seconds.",
+                type=disnake.OptionType.string,
+                required=False
             )
         ] + [
             disnake.Option(
-                f"url{i}",
+                f"url_{i}",
                 f"TikTok URL #{i}.",
                 type=disnake.OptionType.string,
                 required=False
             ) for i in range(2, 11)
         ]
     )
-    async def downloadtiktok(ctx, url1, caption=None, **urls):
+    async def downloadtiktok(ctx, url1, caption=None, slideshow_length="3.0", **urls):
+        try:
+            slideshow_length = float(slideshow_length)
+        except ValueError:
+            await ctx.send("Invalid slideshow length. Please enter a valid number.", ephemeral=True)
+            return
+
+        if slideshow_length <= 0:
+            await ctx.send("Slideshow length must be greater than zero.", ephemeral=True)
+            return
         await ctx.send("Processing your request...", ephemeral=True)
         first_message = True
 
@@ -207,8 +222,7 @@ def setup(bot):
                     audio_url = f"https://www.tikwm.com/video/media/play/{video_id}.mp4"
 
                     slideshow_urls = tiktok_response['data']['download']
-                    video_file, error_message = await process_slideshow(slideshow_urls, audio_url, bot.http_session)
-
+                    video_file, error_message = await process_slideshow(slideshow_urls, audio_url, bot.http_session, slideshow_length)
                     if video_file:
                         try:
                             if first_message:
