@@ -4,6 +4,7 @@ import disnake
 import io
 from datetime import datetime
 from disnake import ApplicationCommandInteraction
+import requests
 from utils import bot, autocomp_colours, shorten_url, has_role_check
 from database import add_video_to_database
 from config import GUILD_IDS
@@ -12,6 +13,12 @@ from private_config import TIKTOK_ARCHIVE_CHANNEL, RAPID_API_KEY
 async def fetch_content(session, url, content_type):
     headers = {"User-Agent": "MyBot"}
     tiktok_author_link = tiktok_original_link = tiktok_sound_link = None
+    
+    if "vm.tiktok.com" in url or "vt.tiktok.com" in url:
+        response = requests.head(url, allow_redirects=True)
+        if response.status_code == 200:
+            url = response.url
+
     if content_type == "tiktok":
         api_url = "https://api.tik.fail/api/grab"
         data = {"url": url}
