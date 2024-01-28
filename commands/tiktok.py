@@ -115,6 +115,13 @@ async def process_slideshow(image_urls, audio_url, http_session, slideshow_lengt
     if not audio_clip:
         return None, "Audio clip creation failed."
 
+    num_images = len([img for img in images_data if img is not None])
+
+    if num_images == 1:
+        slide_duration = audio_clip.duration
+    else:
+        slide_duration = slideshow_length
+        
     slide_duration = slideshow_length
     max_duration_per_image = 6
 
