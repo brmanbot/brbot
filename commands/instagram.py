@@ -9,7 +9,7 @@ async def fetch_media(session, url, content_type, content_counter, ctx):
         async with session.get(url, timeout=180) as response:
             if response.status == 200:
                 media_content = await response.read()
-                file_extension = "mp4" if content_type == 'video' else "jpg"
+                file_extension = "mp4" if content_type.lower() == 'video' else "jpg"
                 filename = f"{content_type}_{content_counter}.{file_extension}"
                 return io.BytesIO(media_content), filename
             else:
