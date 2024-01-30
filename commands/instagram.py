@@ -4,89 +4,64 @@ import re
 import io
 from private_config import RAPID_API_KEY
 
-async def fetch_media(session, url, content_type, content_counter, ctx):
-    try:
-        async with session.get(url, timeout=180) as response:
-            if response.status == 200:
-                media_content = await response.read()
-                file_extension = "mp4" if content_type.lower() == 'video' else "jpg"
-                filename = f"{content_type}_{content_counter}.{file_extension}"
-                return io.BytesIO(media_content), filename
-            else:
-                await ctx.send(
-                    f"Failed to download media from {url}. Response code: {response.status}",
-                    ephemeral=True
-                )
-                return None, None
-    except asyncio.TimeoutError:
-        await ctx.send("The request for downloading media timed out.", ephemeral=True)
-    except Exception as e:
-        await ctx.send(f"Error occurred while downloading media: {e}", ephemeral=True)
-        return None, None
+import aiohttp
+import asyncio
+import io
+import re
+import json
+from private_config import RAPID_API_KEY
+from utils import insta_fetch_media, insta_fetch_media_fallback
+
+re_instagram_post = re.compile(r'/p/([^/?]+)')
+re_instagram_reel = re.compile(r'/reel/([^/?]+)')
+
 
 async def process_urls(ctx, urls, caption, session):
-    tasks = []
+    primary_tasks = []
+    fallback_tasks = []
     content_counter = 1
 
     for url in urls:
-        if not url or not re.match(r'https?://www\.instagram\.com/([a-zA-Z0-9_.]+/)?(p|reel)/[a-zA-Z0-9-_]+', url):
+        match = re_instagram_post.search(url) or re_instagram_reel.search(url)
+        if match:
+            shortcode = match.group(1)
+            primary_tasks.append(asyncio.create_task(insta_fetch_media(session, shortcode)))
+        else:
             await ctx.send(f"Invalid Instagram URL: {url}", ephemeral=True)
-            continue 
-
-        api_url = "https://instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com/"
-        querystring = {"url": url}
-        headers = {
-            "X-RapidAPI-Key": RAPID_API_KEY,
-            "X-RapidAPI-Host": "instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com"
-        }
-
-        try:
-            async with session.get(api_url, headers=headers, params=querystring, timeout=10) as response:
-                if response.status == 200:
-                    data = await response.json()
-
-                    if isinstance(data, list):
-                        for content in data:
-                            if "url" in content:
-                                task = asyncio.create_task(
-                                    fetch_media(session, content["url"], content.get("type", "video"), content_counter, ctx)
-                                )
-                                tasks.append(task)
-                                content_counter += 1
-                    else:
-                        await ctx.send(f"API response error for URL {url}: {data}", ephemeral=True)
-                else:
-                    await ctx.send(
-                        f"Failed to communicate with the API for URL {url}. Status code: {response.status}",
-                        ephemeral=True
-                    )
-        except Exception as e:
-            await ctx.send(
-                f"Error occurred while communicating with the API: {e}",
-                ephemeral=True
-            )
-
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    first_message = True
-    
-    for result in results:
-        if isinstance(result, Exception):
-            if isinstance(result, asyncio.TimeoutError):
-                await ctx.send("The request for downloading media timed out.", ephemeral=True)
-            else:
-                await ctx.send(f"An error occurred: {result}", ephemeral=True)
             continue
 
-        media_buffer, filename = result
-        if media_buffer and filename:
+    primary_results = await asyncio.gather(*primary_tasks, return_exceptions=True)
+
+    for url, result in zip(urls, primary_results):
+        if isinstance(result, Exception) or result[0] is None:
+            fallback_tasks.append(asyncio.create_task(insta_fetch_media_fallback(session, url, "video", content_counter)))
+            content_counter += 1
+
+    fallback_results = await asyncio.gather(*fallback_tasks, return_exceptions=True) if fallback_tasks else []
+
+    combined_results = []
+    fallback_index = 0
+    for result in primary_results:
+        if isinstance(result, Exception) or result[0] is None:
+            combined_results.append(fallback_results[fallback_index])
+            fallback_index += 1
+        else:
+            combined_results.append(result)
+
+    first_message = True
+    for result in combined_results:
+        media_buffer, file_extension = result
+        if media_buffer and file_extension:
             if first_message:
                 message_content = f"{ctx.author.mention}: {caption}" if caption else f"{ctx.author.mention} used /insta"
                 first_message = False
             else:
                 message_content = None
+            filename = f"media_{content_counter}.{file_extension}"
             file = disnake.File(fp=media_buffer, filename=filename)
             await ctx.channel.send(content=message_content, file=file)
             media_buffer.close()
+            content_counter += 1
 
 def setup(bot):
     @bot.slash_command(

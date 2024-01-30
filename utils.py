@@ -1,7 +1,9 @@
 import asyncio
 import datetime
+import io
 import json
 import os
+import re
 import time
 import aiohttp
 import aiosqlite
@@ -15,6 +17,7 @@ import requests
 
 from config import BOSSMANROLE_ID, ALLOWED_USER_ID, INTENTS, get_cooldown, update_cooldown
 from database import fisher_yates_shuffle
+from private_config import RAPID_API_KEY
 from video_manager import VideoManager
 
 print("Utils imported...")
@@ -223,3 +226,79 @@ async def remove_role_later(member, role_id, duration):
 
     with open("role_timestamps.json", "w") as file:
         json.dump(role_timestamps, file)
+
+
+# Instagram
+
+re_instagram_post = re.compile(r'/p/([^/?]+)')
+re_instagram_reel = re.compile(r'/reel/([^/?]+)')
+
+async def insta_fetch_media(session, shortcode):
+    url = "https://instagram230.p.rapidapi.com/post/details"
+    querystring = {"shortcode": shortcode}
+    headers = {
+        "X-RapidAPI-Key": RAPID_API_KEY,
+        "X-RapidAPI-Host": "instagram230.p.rapidapi.com"
+    }
+
+    try:
+        async with session.get(url, headers=headers, params=querystring) as response:
+            if response.status == 200:
+                data = await response.json()
+
+                items = data.get('data', {}).get('xdt_api__v1__media__shortcode__web_info', {}).get('items', [])
+                if items:
+                    video_versions = items[0].get('video_versions', [])
+                    if video_versions:
+                        video_url = video_versions[0].get('url')
+                        if video_url:
+                            async with session.get(video_url) as video_response:
+                                if video_response.status == 200:
+                                    video_content = await video_response.read()
+                                    file_extension = video_url.split('?')[0].split('.')[-1]
+                                    return io.BytesIO(video_content), file_extension
+
+                return None, None
+            else:
+                print(f"Failed to fetch media. Status code: {response.status}")
+                return None, None
+    except asyncio.TimeoutError:
+        print("The request for downloading media timed out.")
+        return None, None
+    except Exception as e:
+        print(f"Error occurred while fetching media: {e}")
+        return None, None
+
+
+async def insta_fetch_media_fallback(session, url, content_type, content_counter):
+    rapidapi_url = "https://instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com/"
+    headers = {
+        "X-RapidAPI-Key": RAPID_API_KEY,
+        "X-RapidAPI-Host": "instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com"
+    }
+    querystring = {"url": url}
+
+    try:
+        async with session.get(rapidapi_url, headers=headers, params=querystring) as response:
+            if response.status == 200:
+                response_data = await response.json()
+                if response_data and isinstance(response_data, list) and "url" in response_data[0]:
+                    media_url = response_data[0]["url"]
+                    async with session.get(media_url) as media_response:
+                        if media_response.status == 200:
+                            media_content = await media_response.read()
+                            file_extension = "mp4" if content_type.lower() == 'video' else "jpg"
+                            filename = f"{content_type}_{content_counter}.{file_extension}"
+                            return io.BytesIO(media_content), filename
+                return None, None
+            else:
+                print(f"RapidAPI fallback failed: {response.status}")
+                return None, None
+    except asyncio.TimeoutError:
+        print("The request for downloading media timed out.")
+        return None, None
+    except Exception as e:
+        print(f"Error occurred while downloading media: {e}")
+        return None, None
+
+        
