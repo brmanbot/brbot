@@ -18,19 +18,63 @@ async def resolve_short_url(url, http_session):
     async with http_session.head(url, allow_redirects=True) as response:
         return str(response.url)
 
-async def fetch_tiktok_content(url, http_session):
+async def fetch_tiktok_content_backup(url, http_session):
+    tikwm_api_url = 'https://www.tikwm.com/api/'
+    headers = {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+    }
+    data = {'url': url}
+
+    async with http_session.post(tikwm_api_url, headers=headers, data=data) as response:
+        if response.status == 200:
+            tikwm_response = await response.json()
+            # print("Normal Method Response:", tikwm_response)
+            if tikwm_response['code'] == 0 and 'data' in tikwm_response:
+                if 'images' in tikwm_response['data']:
+                    images = tikwm_response['data']['images']
+                    music_url = tikwm_response['data'].get('music')
+                    return {'images': images, 'music': music_url}
+                elif 'play' in tikwm_response['data']:
+                    return tikwm_response['data']['play']
+                else:
+                    return None
+            else:
+                return None
+        else:
+            print("Backup Method Failed")
+            return None
+
+
+async def fetch_tiktok_content(url, http_session, timeout=2):
     if '/photo/' in url:
         url = url.replace('/photo/', '/video/')
 
-    async with http_session.post(
-        "https://api.tik.fail/api/grab",
-        headers={"User-Agent": "MyTikTokBot"},
-        data={"url": url}
-    ) as response:
+    try:
+        response = await asyncio.wait_for(
+            http_session.post(
+                "https://api.tik.fail/api/grab",
+                headers={"User-Agent": "MyTikTokBot"},
+                data={"url": url}
+            ),
+            timeout=timeout
+        )
+
         if response.status == 200:
-            return await response.json()
+            response_json = await response.json()
+            # print("Normal Method Response:", response_json)
+            return response_json
         else:
-            return None
+            print("Normal Method Failed, trying Backup Method")
+            return await fetch_tiktok_content_backup(url, http_session)
+
+    except asyncio.TimeoutError:
+        print("Normal Method Timed Out, trying Backup Method")
+        return await fetch_tiktok_content_backup(url, http_session)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
 
 async def download_media(url, http_session):
     async with http_session.get(url) as response:
@@ -213,6 +257,7 @@ def setup(bot):
             original_url = urls[url_key]
             if not original_url:
                 continue
+
             if original_url.startswith("https://vm.tiktok.com/"):
                 resolved_url = await resolve_short_url(original_url, bot.http_session)
             else:
@@ -220,7 +265,51 @@ def setup(bot):
 
             tiktok_response = await fetch_tiktok_content(resolved_url, bot.http_session)
 
-            if tiktok_response and tiktok_response.get("success"):
+            if isinstance(tiktok_response, str):
+                video_url = tiktok_response
+                video_data = await download_media(video_url, bot.http_session)
+                if video_data:
+                    try:
+                        file_name = "test.mp4"
+                        if first_message:
+                            message_content = f"{ctx.author.mention}: {caption}" if caption else f"{ctx.author.mention} used /tiktok"
+                            first_message = False
+                        else:
+                            message_content = None
+                        file = disnake.File(fp=video_data, filename=file_name)
+                        await ctx.channel.send(content=message_content, file=file)
+                        video_data.close()
+                    except disnake.HTTPException as e:
+                        await ctx.send(f"An error occurred while uploading the video: {e}", ephemeral=True)
+                    except Exception as e:
+                        await ctx.send(f"An unexpected error occurred: {e}", ephemeral=True)
+
+            elif isinstance(tiktok_response, dict) and 'images' in tiktok_response and 'music' in tiktok_response:
+                slideshow_urls = tiktok_response['images']
+                audio_url = tiktok_response['music']
+                video_file, error_message = await process_slideshow(slideshow_urls, audio_url, bot.http_session, slideshow_length)
+
+                if video_file:
+                    try:
+                        if first_message:
+                            message_content = f"{ctx.author.mention}: {caption}" if caption else f"{ctx.author.mention} used /tiktok"
+                            first_message = False
+                        else:
+                            message_content = None
+
+                        async with aiofiles.open(video_file, 'rb') as f:
+                            file_content = await f.read()
+                        file = disnake.File(fp=io.BytesIO(file_content), filename=os.path.basename(video_file))
+                        await ctx.channel.send(content=message_content, file=file)
+                        await asyncio.to_thread(os.remove, video_file)
+                    except disnake.HTTPException as e:
+                        await ctx.send(f"An error occurred while uploading the video: {e}", ephemeral=True)
+                    except Exception as e:
+                        await ctx.send(f"An unexpected error occurred: {e}", ephemeral=True)
+                elif error_message:
+                    await ctx.send(error_message, ephemeral=True)
+
+            elif tiktok_response and tiktok_response.get("success"):
                 author_id = tiktok_response["data"]["metadata"]["AccountUserName"]
                 timestamp = tiktok_response["data"]["metadata"]["timestamp"]
 
@@ -274,34 +363,4 @@ def setup(bot):
                     else:
                         await ctx.channel.send(f"Failed to download the video. Original link: {original_url}", ephemeral=True)
             else:
-                video_id_match = re.search(r'/video/(\d+)', resolved_url)
-                if video_id_match:
-                    video_id = video_id_match.group(1)
-                    backup_url = f"https://www.tikwm.com/video/media/play/{video_id}.mp4"
-                    print(f"Attempting backup method for video ID {video_id} with URL: {backup_url}")  # Debug print
-
-                    video_data = await download_media(backup_url, bot.http_session)
-
-                    if video_data:
-                        try:
-                            file_name = f"{video_id}.mp4"
-                            if first_message:
-                                message_content = f"{ctx.author.mention}: {caption}" if caption else f"{ctx.author.mention} used /tiktok"
-                                first_message = False
-                            else:
-                                message_content = None
-                            file = disnake.File(fp=video_data, filename=file_name)
-                            await ctx.channel.send(content=message_content, file=file)
-                            video_data.close()
-                        except disnake.HTTPException as e:
-                            if e.status == 413:
-                                await ctx.send("The video file is too large to upload.", ephemeral=True)
-                            else:
-                                await ctx.send(f"An error occurred while uploading the video: {e}", ephemeral=True)
-                        except Exception as e:
-                            await ctx.send(f"An unexpected error occurred: {e}", ephemeral=True)
-                    else:
-                        print(f"Failed to download the video using the backup method. URL: {backup_url}")  # Debug print
-                else:
-                    print(f"No valid video ID found in URL: {resolved_url}")  # Debug print
-                    await ctx.channel.send(f"Failed to fetch TikTok content and could not find a valid video ID in the URL. Here's the original link: {original_url}", ephemeral=True)
+                return
