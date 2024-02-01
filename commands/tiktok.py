@@ -62,24 +62,21 @@ def setup(bot):
             resolved_url = await resolve_short_url(original_url, ctx.bot.http_session) if original_url.startswith("https://vm.tiktok.com/") else original_url
             tiktok_response = await fetch_tiktok_content(resolved_url, ctx.bot.http_session)
 
-            if isinstance(tiktok_response, tuple) or isinstance(tiktok_response, str):
-                video_url = tiktok_response if isinstance(tiktok_response, str) else tiktok_response[0]
-                await send_video(ctx, video_url, caption, first_message)
-                first_message = False
-            elif isinstance(tiktok_response, dict):
-                if 'play' in tiktok_response:
-                    video_url = tiktok_response['play']
+            if isinstance(tiktok_response, dict):
+                if tiktok_response['type'] == 'video':
+                    video_url = tiktok_response['video_url']
                     await send_video(ctx, video_url, caption, first_message)
                     first_message = False
-                elif 'images' in tiktok_response and 'music' in tiktok_response:
+                elif tiktok_response['type'] == 'slideshow':
                     slideshow_urls = tiktok_response['images']
                     audio_url = tiktok_response['music']
                     await send_slideshow(ctx, slideshow_urls, audio_url, slideshow_length, caption, first_message)
                     first_message = False
                 else:
-                    await ctx.send("Received unexpected response format.", ephemeral=True)
+                    await ctx.send("Received unexpected response type.", ephemeral=True)
             else:
                 await ctx.send("Failed to process the TikTok URL.", ephemeral=True)
+
 
     async def send_video(ctx, video_url, caption, first_message):
         video_data = await download_media(video_url, ctx.bot.http_session)
