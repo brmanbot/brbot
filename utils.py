@@ -326,20 +326,25 @@ async def fetch_tiktok_content_backup(url, http_session):
         if response.status == 200:
             tikwm_response = await response.json()
             if tikwm_response['code'] == 0 and 'data' in tikwm_response:
-                video_url = tikwm_response['data'].get('play')
-                author_id = tikwm_response['data']['author']['id']
-                tiktok_author_link = f"https://www.tiktok.com/@{author_id}"
-                music_id = tikwm_response['data']['music_info']['id'] if 'music_info' in tikwm_response['data'] and 'id' in tikwm_response['data']['music_info'] else None
-                tiktok_sound_link = f"https://www.tiktok.com/music/original-sound-{music_id}" if music_id else None
-                tiktok_original_link = f"https://www.tiktok.com/@{author_id}/video/{tikwm_response['data']['id']}"
-                
-                return video_url, tiktok_author_link, tiktok_original_link, tiktok_sound_link
-
+                # Check if response contains slideshow data ('images' and 'music')
+                if 'images' in tikwm_response['data'] and 'music' in tikwm_response['data']:
+                    images = tikwm_response['data']['images']
+                    music_url = tikwm_response['data']['music']
+                    return {'images': images, 'music': music_url}
+                elif 'play' in tikwm_response['data']:
+                    video_url = tikwm_response['data'].get('play')
+                    author_id = tikwm_response['data']['author']['id']
+                    tiktok_author_link = f"https://www.tiktok.com/@{author_id}"
+                    music_id = tikwm_response['data']['music_info']['id'] if 'music_info' in tikwm_response['data'] and 'id' in tikwm_response['data']['music_info'] else None
+                    tiktok_sound_link = f"https://www.tiktok.com/music/original-sound-{music_id}" if music_id else None
+                    tiktok_original_link = f"https://www.tiktok.com/@{author_id}/video/{tikwm_response['data']['id']}"
+                    
+                    return {'video': video_url, 'author_link': tiktok_author_link, 'original_link': tiktok_original_link, 'sound_link': tiktok_sound_link}
             else:
-                return None, None, None, None
+                return {'error': "TikTok content could not be fetched or does not meet the expected format."}
         else:
             print("Backup Method Failed")
-            return None, None, None, None
+            return {'error': "Failed to fetch TikTok content."}
 
 
 async def fetch_tiktok_content(url, http_session, timeout=0.2):
