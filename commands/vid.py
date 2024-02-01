@@ -5,44 +5,24 @@ import io
 from datetime import datetime
 from disnake import ApplicationCommandInteraction
 import requests
-from utils import bot, autocomp_colours, shorten_url, has_role_check
+from utils import bot, autocomp_colours, fetch_tiktok_content, shorten_url, has_role_check
 from database import add_video_to_database
 from config import GUILD_IDS
 from private_config import TIKTOK_ARCHIVE_CHANNEL, RAPID_API_KEY
 
 async def fetch_content(session, url, content_type):
-    headers = {"User-Agent": "MyBot"}
     tiktok_author_link = tiktok_original_link = tiktok_sound_link = None
-    
-    if "vm.tiktok.com" in url or "vt.tiktok.com" in url:
-        response = requests.head(url, allow_redirects=True)
-        if response.status_code == 200:
-            url = response.url
 
     if content_type == "tiktok":
-        api_url = "https://api.tik.fail/api/grab"
-        data = {"url": url}
-        response = await session.post(api_url, headers=headers, data=data)
-        if response.status == 200:
-            data = await response.json()
-            if data.get("success"):
-                tiktok_author_link = data["data"]["metadata"]["AccountProfileURL"]
-                tiktok_original_link = data["data"]["metadata"]["VideoURL"]
-                tiktok_sound_link = data["data"]["metadata"]["AudioURL"]
-                return data["data"]["download"]["video"].get("NoWM", {}).get("url"), tiktok_author_link, tiktok_original_link, tiktok_sound_link
-            else:
-                video_id_match = re.search(r'/video/(\d+)', url)
-                author_match = re.search(r'https?://www\.tiktok\.com/@([^/]+)/', url)
-                if video_id_match and author_match:
-                    video_id = video_id_match.group(1)
-                    author_username = author_match.group(1)
-                    backup_video_url = f"https://www.tikwm.com/video/media/play/{video_id}.mp4"
-                    backup_sound_url = f"https://www.tikwm.com/video/music/{video_id}.mp3"
-                    tiktok_author_link = f"https://www.tiktok.com/@{author_username}/"
-                    backup_response = await session.get(backup_video_url, headers=headers)
-                    if backup_response.status == 200:
-                        return backup_video_url, tiktok_author_link, url, backup_sound_url
-        return None, None, None, None
+        tiktok_response = await fetch_tiktok_content(url, session)
+        if tiktok_response:
+            if isinstance(tiktok_response, tuple):
+                video_url, tiktok_author_link, tiktok_original_link, tiktok_sound_link = tiktok_response
+                return video_url, tiktok_author_link, tiktok_original_link, tiktok_sound_link
+            elif isinstance(tiktok_response, dict) and 'play' in tiktok_response:
+                video_url = tiktok_response['play']
+                return video_url, tiktok_author_link, tiktok_original_link, tiktok_sound_link
+            
     elif content_type == "instagram":
         api_url = "https://instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com/"
         querystring = {"url": url}

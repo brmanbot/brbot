@@ -325,21 +325,21 @@ async def fetch_tiktok_content_backup(url, http_session):
     async with http_session.post(tikwm_api_url, headers=headers, data=data) as response:
         if response.status == 200:
             tikwm_response = await response.json()
-            # print("Backup Method Response:", tikwm_response)
             if tikwm_response['code'] == 0 and 'data' in tikwm_response:
-                if 'images' in tikwm_response['data']:
-                    images = tikwm_response['data']['images']
-                    music_url = tikwm_response['data'].get('music')
-                    return {'images': images, 'music': music_url}
-                elif 'play' in tikwm_response['data']:
-                    return tikwm_response['data']['play']
-                else:
-                    return None
+                video_url = tikwm_response['data'].get('play')
+                author_id = tikwm_response['data']['author']['id']
+                tiktok_author_link = f"https://www.tiktok.com/@{author_id}"
+                music_id = tikwm_response['data']['music_info']['id'] if 'music_info' in tikwm_response['data'] and 'id' in tikwm_response['data']['music_info'] else None
+                tiktok_sound_link = f"https://www.tiktok.com/music/original-sound-{music_id}" if music_id else None
+                tiktok_original_link = f"https://www.tiktok.com/@{author_id}/video/{tikwm_response['data']['id']}"
+                
+                return video_url, tiktok_author_link, tiktok_original_link, tiktok_sound_link
+
             else:
-                return None
+                return None, None, None, None
         else:
             print("Backup Method Failed")
-            return None
+            return None, None, None, None
 
 
 async def fetch_tiktok_content(url, http_session, timeout=0.2):
