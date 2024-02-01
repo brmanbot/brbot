@@ -15,12 +15,12 @@ async def fetch_content(session, url, content_type):
 
     if content_type == "tiktok":
         tiktok_response = await fetch_tiktok_content(url, session)
-        if tiktok_response:
-            if isinstance(tiktok_response, tuple):
-                video_url, tiktok_author_link, tiktok_original_link, tiktok_sound_link = tiktok_response
-                return video_url, tiktok_author_link, tiktok_original_link, tiktok_sound_link
-            elif isinstance(tiktok_response, dict) and 'play' in tiktok_response:
-                video_url = tiktok_response['play']
+        if tiktok_response and isinstance(tiktok_response, dict):
+            if tiktok_response['type'] == 'video':
+                video_url = tiktok_response['video_url']
+                tiktok_author_link = tiktok_response.get('author_link', None)
+                tiktok_original_link = tiktok_response.get('original_link', None)
+                tiktok_sound_link = tiktok_response.get('sound_link', None)
                 return video_url, tiktok_author_link, tiktok_original_link, tiktok_sound_link
             
     elif content_type == "instagram":
