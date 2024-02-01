@@ -85,7 +85,10 @@ def setup(bot):
         video_data = await download_media(video_url, ctx.bot.http_session)
         if video_data:
             file_name = "TikTokVideo.mp4"
-            message_content = f"{ctx.author.mention}: {caption}" if caption and first_message else None
+            if first_message:
+                message_content = f"{ctx.author.mention} {caption if caption else 'has used /tiktok'}"
+            else:
+                message_content = None
             file = disnake.File(fp=video_data, filename=file_name)
             await ctx.channel.send(content=message_content, file=file)
         else:
@@ -94,14 +97,14 @@ def setup(bot):
     async def send_slideshow(ctx, slideshow_urls, audio_url, slideshow_length, caption, first_message):
         video_file, error_message = await process_slideshow(slideshow_urls, audio_url, ctx.bot.http_session, slideshow_length)
         if video_file:
-            message_content = f"{ctx.author.mention}: {caption}" if caption and first_message else None
+            if first_message:
+                message_content = f"{ctx.author.mention} {caption if caption else 'has used /tiktok'}"
+            else:
+                message_content = None
             async with aiofiles.open(video_file, 'rb') as f:
                 file_content = await f.read()
             file = disnake.File(fp=io.BytesIO(file_content), filename=os.path.basename(video_file))
             await ctx.channel.send(content=message_content, file=file)
             await asyncio.to_thread(os.remove, video_file)
-            first_message = False
         elif error_message:
             await ctx.send(error_message, ephemeral=True)
-
-
