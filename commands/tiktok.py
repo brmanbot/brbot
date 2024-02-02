@@ -83,7 +83,7 @@ def setup(bot):
         if video_data:
             file_name = "TikTokVideo.mp4"
             if first_message:
-                message_content = f"{ctx.author.mention} {caption if caption else 'has used /tiktok'}"
+                message_content = f"{ctx.author.mention}: {caption}" if caption else f"{ctx.author.mention} used /tiktok"
             else:
                 message_content = None
             file = disnake.File(fp=video_data, filename=file_name)
@@ -95,7 +95,7 @@ def setup(bot):
         video_file, error_message = await process_slideshow(slideshow_urls, audio_url, ctx.bot.http_session, slideshow_length)
         if video_file:
             if first_message:
-                message_content = f"{ctx.author.mention} {caption if caption else 'has used /tiktok'}"
+                message_content = f"{ctx.author.mention}: {caption}" if caption else f"{ctx.author.mention} used /tiktok"
             else:
                 message_content = None
             async with aiofiles.open(video_file, 'rb') as f:

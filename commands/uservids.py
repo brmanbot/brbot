@@ -76,7 +76,7 @@ def setup(bot):
 
             async with bot.http_session.post('https://0x0.st', data={'file': img_bytes}) as resp:
                 if resp.status != 200:
-                    return await ctx.send('Could not upload the image.')
+                    return
                 else:
                     img_url = await resp.text()
 
