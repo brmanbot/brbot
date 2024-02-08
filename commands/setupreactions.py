@@ -161,8 +161,8 @@ def setup(bot):
                 reaction_message_ids.setdefault(payload.guild_id, []).append(
                     message_in_target_channel_id)
             else:
-                user_message += f"[:]({chosen_video})"
+                user_message += f"[᲼]({chosen_video})"
                 await target_channel.send(user_message)
         else:
-            user_message += f"[:]({chosen_video})"
+            user_message += f"[᲼]({chosen_video})"
             await target_channel.send(user_message)
