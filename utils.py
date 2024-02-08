@@ -279,7 +279,7 @@ async def insta_fetch_media(session, url):
                      "X-RapidAPI-Host": "instagram230.p.rapidapi.com"},
             params={"shortcode": shortcode}
         ) as response:
-            # print(f"Response Status: {response.status}") #debug
+            # print(f"Response Status: {response.status}")
             if response.status == 200:
                 data = await response.json()
                 video_versions = data.get('data', {}).get('xdt_api__v1__media__shortcode__web_info', {

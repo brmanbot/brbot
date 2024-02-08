@@ -287,8 +287,8 @@ class VideoManager:
                 await db.commit()
                 if color in self.bot.video_lists and original_url not in self.bot.video_lists[color]:
                     self.bot.video_lists[color].append(
-                        original_url)  # Append original_url here
+                        original_url)
                     fisher_yates_shuffle(self.bot.video_lists[color])
             except aiosqlite.IntegrityError as e:
                 print(f"Error adding video to the database: {e}")
-        self.save_data()  # Save data after updating the list
+        self.save_data()
