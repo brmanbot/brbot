@@ -5,6 +5,7 @@ from disnake import ButtonStyle
 from utils import bot
 from config import GUILD_IDS
 
+
 def setup(bot):
     @bot.slash_command(
         name="vids",
@@ -12,14 +13,14 @@ def setup(bot):
         guild_ids=GUILD_IDS
     )
     async def vids(ctx):
-        colour = "green"  # Default color
+        colour = "green"
         embed = await create_embed(colour, 1)
         view = ColourSelector(ctx, colour)
         await ctx.response.send_message(embed=embed, view=view)
 
     async def fetch_videos(colour):
         async with aiosqlite.connect("videos.db") as db:
-            query = "SELECT name, url FROM videos WHERE LOWER(color) = LOWER(?)"
+            query = "SELECT name, original_url FROM videos WHERE LOWER(color) = LOWER(?)"
             values = (colour,)
             async with db.execute(query, values) as cursor:
                 videos = await cursor.fetchall()

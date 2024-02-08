@@ -5,6 +5,7 @@ from config import ALLOWED_USER_ID, GREEN_ROLE_ID, GUILD_IDS, RED_ROLE_ID, YELLO
 from database import fisher_yates_shuffle
 from utils import bot, load_setup_data, store_setup_data, load_role_timestamps, setup_data
 
+
 async def send_message_and_add_reaction(channel, message):
     sent_message = await channel.send(message)
     await sent_message.add_reaction("✅")
@@ -45,7 +46,7 @@ async def send_message_and_add_reaction(channel, message):
 #         if ctx.author.id != ALLOWED_USER_ID:
 #             await ctx.send("You are not authorised to use this command.", ephemeral=True)
 #             return
-        
+
 #         await ctx.response.defer()
 
 #         message_id = int(message_id)
@@ -55,7 +56,7 @@ async def send_message_and_add_reaction(channel, message):
 #         except disnake.NotFound:
 #             await ctx.send("Invalid message ID. Please try again.", ephemeral=True)
 #             return
-        
+
 #         for reaction in ["✅", "❌", "🤔"]:
 #             await message_with_reactions.add_reaction(reaction)
 
@@ -68,6 +69,7 @@ async def send_message_and_add_reaction(channel, message):
 reaction_message_ids = {}
 ALLOWED_EMOJIS = {"✅", "❌", "🤔"}
 
+
 def setup(bot):
     @bot.event
     async def on_raw_reaction_add(payload):
@@ -77,7 +79,8 @@ def setup(bot):
 
         assert bot.video_manager is not None, "video_manager is not initialized"
 
-        setup_data["message_id"], setup_data["channel_id"], setup_data["target_channel_id"] = load_setup_data(payload.guild_id)
+        setup_data["message_id"], setup_data["channel_id"], setup_data["target_channel_id"] = load_setup_data(
+            payload.guild_id)
 
         if payload.message_id != setup_data["message_id"] or payload.channel_id != setup_data["channel_id"]:
             if payload.message_id not in reaction_message_ids.get(payload.guild_id, []):
@@ -137,7 +140,8 @@ def setup(bot):
         bot.video_manager.save_data()
 
         await asyncio.sleep(0)
-        yellow_role_users = [member for member in guild.members if yellow_role in member.roles]
+        yellow_role_users = [
+            member for member in guild.members if yellow_role in member.roles]
 
         emoji_to_color_and_message = {
             "✅": (f"{user.mention} is {green_role.mention} {random_emojis[1]}"),
@@ -148,12 +152,14 @@ def setup(bot):
         user_message = emoji_to_color_and_message[emoji]
 
         if color == "green":
-            yellow_role_users = [member for member in guild.members if yellow_role in member.roles and member.id != user.id]
+            yellow_role_users = [
+                member for member in guild.members if yellow_role in member.roles and member.id != user.id]
 
             if yellow_role_users:
-                user_message += f"\nDoes that change your mind {yellow_role.mention} {random_emojis[0]}❓[:]({chosen_video}) "
+                user_message += f"\nDoes that change your mind {yellow_role.mention} {random_emojis[0]}❓[᲼]({chosen_video}) "
                 message_in_target_channel_id = await send_message_and_add_reaction(target_channel, user_message)
-                reaction_message_ids.setdefault(payload.guild_id, []).append(message_in_target_channel_id)
+                reaction_message_ids.setdefault(payload.guild_id, []).append(
+                    message_in_target_channel_id)
             else:
                 user_message += f"[:]({chosen_video})"
                 await target_channel.send(user_message)

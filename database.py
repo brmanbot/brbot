@@ -41,24 +41,6 @@ async def initialize_database():
         logging.error(f"Error initializing the database: {e}")
 
 
-async def add_video_to_database(name, url, color, original_url, added_by, tiktok_author_link, tiktok_original_link, tiktok_sound_link, insta_original_link, date_added, video_manager):
-    async with aiosqlite.connect(DATABASE_NAME) as db:
-        query = """
-            INSERT INTO videos 
-            (name, url, color, original_url, added_by, tiktok_author_link, tiktok_original_link, tiktok_sound_link, insta_original_link, date_added) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """
-        values = (name, url, color, original_url, added_by, tiktok_author_link, tiktok_original_link, tiktok_sound_link, insta_original_link, date_added)
-        try:
-            await db.execute(query, values)
-            await db.commit()
-            if color in video_manager.video_lists:
-                video_manager.video_lists[color].append(url)
-                fisher_yates_shuffle(video_manager.video_lists[color])
-                video_manager.save_data()
-        except aiosqlite.IntegrityError as e:
-            logging.error(f"Error adding video to the database: {e}")
-
 async def add_video_to_hall_of_fame(id):
     async with aiosqlite.connect(DATABASE_NAME) as db:
         query = "UPDATE videos SET is_hall_of_fame = ? WHERE id = ?"
@@ -69,9 +51,10 @@ async def add_video_to_hall_of_fame(id):
         except aiosqlite.IntegrityError as e:
             logging.error(f"Error adding video to the hall of fame: {e}")
 
+
 async def get_hall_of_fame_videos():
     async with aiosqlite.connect(DATABASE_NAME) as db:
-        query = "SELECT id, url FROM videos WHERE is_hall_of_fame = ?"
+        query = "SELECT id, original_url FROM videos WHERE is_hall_of_fame = ?"
         values = (True,)
         try:
             cursor = await db.execute(query, values)
@@ -79,22 +62,24 @@ async def get_hall_of_fame_videos():
         except aiosqlite.IntegrityError as e:
             logging.error(f"Error retrieving hall of fame videos: {e}")
 
+
 async def synchronize_cache_with_database():
     cache_file_path = "video_data.json"
     db_path = "videos.db"
     conflicts = []
 
     async with aiosqlite.connect(db_path) as db:
-        query = "SELECT url, COUNT(*) c FROM videos GROUP BY url HAVING c > 1"
+        query = "SELECT original_url, COUNT(*) c FROM videos GROUP BY original_url HAVING c > 1"
         cursor = await db.execute(query)
         duplicates = await cursor.fetchall()
 
         if duplicates:
-            for url, _ in duplicates:
-                id_query = "SELECT id, name, color, added_by FROM videos WHERE url = ?"
-                cursor = await db.execute(id_query, (url,))
+            for original_url, _ in duplicates:
+                id_query = "SELECT id, name, color, added_by FROM videos WHERE original_url = ?"
+                cursor = await db.execute(id_query, (original_url,))
                 ids = [(row[0], row[1], row[2], row[3]) for row in await cursor.fetchall()]
-                conflicts.append(f"Duplicate URL found: {url}. Keeping ID: {ids[0][0]} (Name: {ids[0][1]}, Color: {ids[0][2]}, Added by: {ids[0][3]}), removing others.")
+                conflicts.append(
+                    f"Duplicate URL found: {original_url}. Keeping ID: {ids[0][0]} (Name: {ids[0][1]}, Color: {ids[0][2]}, Added by: {ids[0][3]}), removing others.")
                 for id_to_delete, _, _, _ in ids[1:]:
                     delete_query = "DELETE FROM videos WHERE id = ?"
                     await db.execute(delete_query, (id_to_delete,))
@@ -103,14 +88,15 @@ async def synchronize_cache_with_database():
 
         db_videos = {}
         for color in ["green", "red", "yellow"]:
-            async with db.execute("SELECT url, name FROM videos WHERE LOWER(color) = ?", (color.lower(),)) as cursor:
+            async with db.execute("SELECT original_url, name FROM videos WHERE LOWER(color) = ?", (color.lower(),)) as cursor:
                 db_videos[color] = {row[0]: row[1] for row in await cursor.fetchall()}
 
     if os.path.exists(cache_file_path):
         with open(cache_file_path, "r") as file:
             cache_data = json.load(file)
     else:
-        cache_data = {"video_lists": {color: [] for color in ["green", "red", "yellow"]}, "last_reset": {}, "played_videos": {}, "hall_of_fame": []}
+        cache_data = {"video_lists": {color: [] for color in [
+            "green", "red", "yellow"]}, "last_reset": {}, "played_videos": {}, "hall_of_fame": []}
 
     for color, db_urls in db_videos.items():
         cached_urls = set(cache_data["video_lists"].get(color, []))
@@ -123,7 +109,8 @@ async def synchronize_cache_with_database():
             conflicts.append(f"Added to cache in '{color}': {added_details}")
         if removed:
             removed_details = [url for url in removed]
-            conflicts.append(f"Removed from cache in '{color}': {removed_details}")
+            conflicts.append(
+                f"Removed from cache in '{color}': {removed_details}")
 
         cache_data["video_lists"][color] = list(db_url_set)
 

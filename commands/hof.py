@@ -4,13 +4,13 @@ from disnake import ButtonStyle
 from config import GUILD_IDS
 from video_manager import VideoManager
 
+
 class HallOfFameSelector(disnake.ui.View):
     def __init__(self, ctx, videos):
         super().__init__(timeout=180)
         self.ctx = ctx
-        self.videos = [[i, url] for i, url in enumerate(videos)]
+        self.videos = [[i, video] for i, video in enumerate(videos)]
         self.current_video = 0
-        self.previous_video = None
 
     async def on_timeout(self):
         for item in self.children:
@@ -30,11 +30,10 @@ class HallOfFameSelector(disnake.ui.View):
 
     @disnake.ui.button(label="Shuffle", style=ButtonStyle.primary, emoji="🔀", custom_id="shuffle_videos", row=1)
     async def shuffle_button(self, button: disnake.ui.Button, interaction: disnake.Interaction):
-        while True:
-            self.previous_video = self.current_video
+        self.previous_video = self.current_video
+        self.current_video = random.randint(0, len(self.videos) - 1)
+        while self.previous_video == self.current_video:
             self.current_video = random.randint(0, len(self.videos) - 1)
-            if self.previous_video != self.current_video:
-                break
         await self.update_video(interaction)
 
     async def update_video(self, interaction):
@@ -50,13 +49,8 @@ class HallOfFameSelector(disnake.ui.View):
         else:
             self.next_button.disabled = False
 
-        for idx, component in enumerate(self.children):
-            if component.custom_id == "previous_video":
-                self.children[idx] = self.previous_button
-            elif component.custom_id == "next_video":
-                self.children[idx] = self.next_button
-
         await interaction.response.edit_message(content=video_url, view=self)
+
 
 def setup(bot):
     @bot.slash_command(
@@ -67,7 +61,7 @@ def setup(bot):
     async def hof(ctx):
         video_manager = bot.video_manager
         videos = video_manager.hall_of_fame
-        
+
         if not videos:
             await ctx.send("There are currently no videos in the hall of fame.")
             return

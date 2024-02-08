@@ -1,14 +1,19 @@
-import re
-import aiosqlite
-import disnake
 import io
 from datetime import datetime
-from disnake import ApplicationCommandInteraction
+
+import aiosqlite
+import disnake
 import requests
-from utils import bot, autocomp_colours, fetch_tiktok_content, shorten_url, has_role_check, insta_fetch_media
-from database import add_video_to_database
+from disnake import ApplicationCommandInteraction
+
 from config import GUILD_IDS
-from private_config import TIKTOK_ARCHIVE_CHANNEL, RAPID_API_KEY
+from private_config import TIKTOK_ARCHIVE_CHANNEL
+from urllib.parse import urlparse
+from utils import (
+    bot, autocomp_colours, fetch_tiktok_content, shorten_url,
+    has_role_check, insta_fetch_media
+)
+
 
 async def fetch_content(session, url, content_type):
     if content_type == "tiktok":
@@ -17,7 +22,8 @@ async def fetch_content(session, url, content_type):
             if tiktok_response['type'] == 'video':
                 video_url = tiktok_response['video_url']
                 tiktok_author_link = tiktok_response.get('author_link', None)
-                tiktok_original_link = tiktok_response.get('original_link', None)
+                tiktok_original_link = tiktok_response.get(
+                    'original_link', None)
                 tiktok_sound_link = tiktok_response.get('sound_link', None)
                 return video_url, tiktok_author_link, tiktok_original_link, tiktok_sound_link
     elif content_type == "instagram":
@@ -29,6 +35,7 @@ async def fetch_content(session, url, content_type):
 
     return None, None, None, None
 
+
 async def download_video(session, video_url):
     if not isinstance(video_url, str):
         print(f"Invalid video URL: {video_url}")
@@ -38,31 +45,32 @@ async def download_video(session, video_url):
         if response.status == 200:
             return io.BytesIO(await response.read())
         return None
-    
-async def video_exists(name, shortened_url, original_discord_url, tiktok_original_link, insta_original_link, db_path="videos.db"):
+
+
+async def video_exists(name, original_discord_url, tiktok_original_link, insta_original_link, db_path="videos.db"):
     query = """
-    SELECT name, url, original_url, tiktok_original_link, insta_original_link 
+    SELECT name, original_url, tiktok_original_link, insta_original_link 
     FROM videos 
-    WHERE name = ? OR url = ? OR original_url = ? OR tiktok_original_link = ? OR insta_original_link = ?
+    WHERE name = ? OR original_url = ? OR tiktok_original_link = ? OR insta_original_link = ?
     """
-    params = (name, shortened_url, original_discord_url, tiktok_original_link, insta_original_link)
+    params = (name, original_discord_url,
+              tiktok_original_link, insta_original_link)
     conflict_details = []
     async with aiosqlite.connect(db_path) as db:
         async with db.execute(query, params) as cursor:
             rows = await cursor.fetchall()
             for row in rows:
-                video_name, video_url, original_url, tiktok_link, insta_link = row
+                video_name, original_url, tiktok_link, insta_link = row
                 if video_name == name:
-                    conflict_details.append(("Name", video_url))
-                if shortened_url and video_url == shortened_url:
-                    conflict_details.append(("Shortened URL", video_url))
+                    conflict_details.append(("Name", original_url))
                 if original_discord_url and original_url == original_discord_url:
-                    conflict_details.append(("Discord URL", video_url))
+                    conflict_details.append(("Discord URL", original_url))
                 if tiktok_original_link and tiktok_link == tiktok_original_link:
-                    conflict_details.append(("TikTok URL", video_url))
+                    conflict_details.append(("TikTok URL", original_url))
                 if insta_original_link and insta_link == insta_original_link:
-                    conflict_details.append(("Instagram URL", video_url))
+                    conflict_details.append(("Instagram URL", original_url))
     return conflict_details
+
 
 async def create_conflict_message(conflict_details, video_manager):
     conflict_messages = []
@@ -72,6 +80,15 @@ async def create_conflict_message(conflict_details, video_manager):
             video_name = video_info['name']
             conflict_messages.append(f"{conflict_type}: [{video_name}]({url})")
     return "\n".join(conflict_messages)
+
+
+def normalize_discord_url(url):
+    parsed_url = urlparse(url)
+    if 'cdn.discordapp.com' in parsed_url.netloc or 'media.discordapp.net' in parsed_url.netloc:
+        normalized_url = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}"
+        return normalized_url
+    return url
+
 
 def setup(bot):
     @bot.slash_command(
@@ -100,39 +117,33 @@ def setup(bot):
             )
         ]
     )
-    async def vid(inter, colour: str, name: str, url: str):
+    async def vid(inter: ApplicationCommandInteraction, colour: str, name: str, url: str):
         if not await has_role_check(inter):
             await inter.response.send_message("You do not have permission to use this command.", ephemeral=True)
             return
 
         await inter.response.send_message("Processing your request...", ephemeral=True)
+
+        normalized_url = normalize_discord_url(url)
+
+        content_type = "tiktok" if "tiktok.com" in normalized_url else "instagram" if "instagram.com" in normalized_url else "discord"
         date_added = datetime.now().strftime("%d/%m/%Y")
         added_by = f"{inter.user.name}#{inter.user.discriminator}"
-        content_type = "tiktok" if "tiktok.com" in url else "instagram" if "instagram.com" in url else "discord" if url.startswith("https://cdn.discordapp.com/attachments/") or url.startswith("https://media.discordapp.net/attachments/") else None
 
-        video_url, author_link, original_link, sound_link = await fetch_content(bot.http_session, url, content_type)
+        video_url, author_link, original_link, sound_link = await fetch_content(bot.http_session, normalized_url, content_type)
+        original_discord_url = normalized_url if content_type == "discord" else None
         tiktok_original_link = original_link if content_type == "tiktok" else None
-        tiktok_sound_link = sound_link if content_type == "tiktok" else None  # Ensure tiktok_sound_link is defined
-
-        if content_type == "instagram":
-            original_link = normalize_instagram_url(original_link)
         insta_original_link = original_link if content_type == "instagram" else None
 
-        conflict_details = await video_exists(name, None, url, tiktok_original_link, normalize_instagram_url(insta_original_link) if content_type == "instagram" else None)
+        conflict_details = await bot.video_manager.video_exists(
+            name, original_discord_url, tiktok_original_link, insta_original_link)
 
-        conflict_message = await create_conflict_message(conflict_details, bot.video_manager)
-        if conflict_message:
-            await inter.followup.send(f"Video(s) exist with same information:\n{conflict_message}", ephemeral=True)
+        if conflict_details:
+            conflict_message = await create_conflict_message(conflict_details, bot.video_manager)
+            await inter.followup.send(f"Video(s) exist with the same information:\n{conflict_message}", ephemeral=True)
             return
 
-        short_url = await shorten_url(url) if content_type == "discord" else None
-        if not short_url and content_type == "discord":
-            await inter.followup.send("Error creating short URL.", ephemeral=True)
-            return
-
-        if content_type == "discord":
-            await add_video_to_database(name, short_url, colour.lower(), url, added_by, None, tiktok_original_link, tiktok_sound_link, insta_original_link, date_added, bot.video_manager)
-        elif video_url:
+        if content_type in ["tiktok", "instagram"]:
             video_data = await download_video(bot.http_session, video_url)
             if not video_data:
                 await inter.followup.send("Failed to download video content.", ephemeral=True)
@@ -142,24 +153,27 @@ def setup(bot):
                 video_message = await upload_channel.send(file=disnake.File(fp=video_data, filename=f"{name}.mp4"))
                 original_discord_url = video_message.attachments[0].url
                 short_url = await shorten_url(original_discord_url)
-                if not short_url:
-                    await inter.followup.send("Error creating short URL.", ephemeral=True)
-                    return
-
-                await add_video_to_database(name, short_url, colour.lower(), original_discord_url, added_by, author_link, tiktok_original_link, tiktok_sound_link, insta_original_link, date_added, bot.video_manager)
             else:
                 await inter.followup.send("Invalid upload channel ID.", ephemeral=True)
                 return
+        elif content_type == "discord":
+            short_url = await shorten_url(url)
 
-        bot.video_manager.video_lists[colour.lower()].append(short_url)
+        await bot.video_manager.add_video_to_database(
+            name=name,
+            url=short_url,
+            color=colour.lower(),
+            original_url=original_discord_url,
+            added_by=added_by,
+            tiktok_author_link=author_link if content_type == "tiktok" else None,
+            tiktok_original_link=tiktok_original_link,
+            tiktok_sound_link=sound_link if content_type == "tiktok" else None,
+            insta_original_link=insta_original_link,
+            date_added=date_added
+        )
+
         bot.video_manager.save_data()
-        await inter.followup.send(f"Saved `{short_url}` as `{name}` in `{colour}` database.")
-
-    def normalize_instagram_url(url):
-        if "instagram.com" in url:
-            url = url.rstrip('/')
-            url = url.replace('/reel/', '/p/')
-        return url
+        await inter.followup.send(f"Saved `{name}` in the `{colour}` database.", ephemeral=True)
 
     @vid.autocomplete("colour")
     async def vid_autocomplete_colour(inter: ApplicationCommandInteraction, user_input: str):

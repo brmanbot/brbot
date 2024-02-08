@@ -1,7 +1,8 @@
 import aiosqlite
-from utils import autocomp_video_names, bot, has_role_check
+from utils import autocomp_video_names, bot, has_role_check, normalize_url
 from config import GUILD_IDS
 import disnake
+
 
 def setup(bot):
     @bot.slash_command(
@@ -23,28 +24,26 @@ def setup(bot):
             await inter.response.send_message("You are not authorised to use this command.", ephemeral=True)
             return
 
-        assert bot.video_manager is not None, "video_manager is not initialized"
-
-        select_query = "SELECT * FROM videos WHERE name = ? OR url = ?"
-        update_query = "UPDATE videos SET is_hall_of_fame = 1 WHERE name = ? OR url = ?"
+        normalized_identifier = normalize_url(identifier)
 
         async with aiosqlite.connect("videos.db") as db:
-            async with db.execute(select_query, (identifier, identifier)) as cursor:
+            async with db.execute("SELECT id, name, is_hall_of_fame FROM videos WHERE name = ? OR original_url = ?", (identifier, normalized_identifier)) as cursor:
                 result = await cursor.fetchone()
 
             if result is None:
                 await inter.response.send_message(f"The video `{identifier}` does not exist in the database.", ephemeral=True)
                 return
 
-            if result[7]:
-                await inter.response.send_message(f"The video `{identifier}` is already in the Hall of Fame.", ephemeral=True)
+            video_id, video_name, is_hall_of_fame = result
+            if is_hall_of_fame:
+                await inter.response.send_message(f"The video `{video_name}` is already in the Hall of Fame.", ephemeral=True)
                 return
 
             try:
-                await db.execute(update_query, (identifier, identifier))
+                await db.execute("UPDATE videos SET is_hall_of_fame = 1 WHERE id = ?", (video_id,))
                 await db.commit()
-                await bot.video_manager.update_hall_of_fame(result[1])
-                await inter.response.send_message(f"Video `{result[1]}` has been added to the Hall of Fame 🏆.")
+                await bot.video_manager.update_hall_of_fame(video_name)
+                await inter.response.send_message(f"`{video_name}` has been added to the Hall of Fame 🏆.")
             except aiosqlite.Error as e:
                 await inter.response.send_message(f"An error occurred while adding the video to the Hall of Fame: {e}", ephemeral=True)
 

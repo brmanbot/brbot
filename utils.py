@@ -5,6 +5,7 @@ import json
 import os
 import re
 import time
+from urllib.parse import urlparse
 import aiofiles
 import aiohttp
 import aiosqlite
@@ -29,6 +30,7 @@ from video_manager import VideoManager
 
 print("Utils imported...")
 
+
 class CustomBot(commands.InteractionBot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -50,11 +52,13 @@ class CustomBot(commands.InteractionBot):
         await self.http_session.close()
         await super().close()
 
+
 bot = CustomBot(intents=INTENTS)
+
 
 async def setup_video_manager(bot):
     bot.video_manager = await VideoManager.create(bot)
-    
+
 setup_data = {"message_id": 0, "channel_id": 0, "target_channel_id": 0}
 
 
@@ -68,11 +72,12 @@ async def shorten_url(url: str) -> str:
     except requests.exceptions.RequestException as e:
         print(f"Error shortening URL: {e}")
         return None
-                                        
+
 
 async def autocomp_colours(inter: ApplicationCommandInteraction, user_input: str):
     colours = ["Green", "Red", "Yellow"]
-    suggestions = [colour for colour in colours if colour.startswith(user_input.lower())]
+    suggestions = [
+        colour for colour in colours if colour.startswith(user_input.lower())]
     return suggestions
 
 
@@ -129,7 +134,17 @@ def store_setup_data(guild_id, message_id, channel_id, target_channel_id):
     return None
 
 
+def normalize_url(url):
+    try:
+        parsed_url = urlparse(url)
+        normalized_url = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}"
+        return normalized_url
+    except Exception:
+        return url
+
 # Role Timestamps Management Functions
+
+
 def load_role_timestamps(guild_id):
     guild_id = str(guild_id)
     if os.path.exists("role_timestamps.json"):
@@ -148,7 +163,8 @@ def store_role_timestamps(guild_id, user_id, removal_timestamp, role_id):
         data = json.load(file)
     if guild_id not in data:
         data[guild_id] = {}
-    data[guild_id][user_id] = {"removal_timestamp": removal_timestamp, "role_id": role_id}
+    data[guild_id][user_id] = {
+        "removal_timestamp": removal_timestamp, "role_id": role_id}
     with open("role_timestamps.json", "w") as file:
         json.dump(data, file)
 
@@ -181,7 +197,8 @@ async def schedule_role_removals(bot):
                 user_id = int(user_id)
                 removal_timestamp = user_data['removal_timestamp']
                 role_id = int(user_data['role_id'])
-                removal_time = datetime.datetime.fromtimestamp(removal_timestamp)
+                removal_time = datetime.datetime.fromtimestamp(
+                    removal_timestamp)
 
                 if removal_time <= datetime.datetime.now():
                     user = await guild.fetch_member(user_id)
@@ -190,7 +207,8 @@ async def schedule_role_removals(bot):
                         await user.remove_roles(role)
 
                     del role_removal_data[str(guild.id)][str(user_id)]
-                    update_guild_role_timestamps(guild.id, role_removal_data[str(guild.id)])
+                    update_guild_role_timestamps(
+                        guild.id, role_removal_data[str(guild.id)])
                 else:
                     async def remove_role_at_time():
                         await disnake.utils.sleep_until(removal_time)
@@ -200,7 +218,8 @@ async def schedule_role_removals(bot):
                             await user.remove_roles(role)
 
                         del role_removal_data[str(guild.id)][str(user_id)]
-                        update_guild_role_timestamps(guild.id, role_removal_data[str(guild.id)])
+                        update_guild_role_timestamps(
+                            guild.id, role_removal_data[str(guild.id)])
 
                     bot.loop.create_task(remove_role_at_time())
 
@@ -218,7 +237,8 @@ async def remove_role(user, role_id):
 
 async def remove_role_later(member, role_id, duration):
     removal_time = datetime.datetime.now() + datetime.timedelta(seconds=duration)
-    store_role_timestamps(member.guild.id, member.id, removal_time.timestamp(), role_id)
+    store_role_timestamps(member.guild.id, member.id,
+                          removal_time.timestamp(), role_id)
 
     await disnake.utils.sleep_until(removal_time)
     role = member.guild.get_role(role_id)
@@ -239,12 +259,14 @@ async def remove_role_later(member, role_id, duration):
 re_instagram_post = re.compile(r'/p/([^/?]+)')
 re_instagram_reel = re.compile(r'/reel/([^/?]+)')
 
+
 async def insta_fetch_media(session, url):
     re_instagram_post = re.compile(r'/p/([^/?]+)')
     re_instagram_reel = re.compile(r'/reel/([^/?]+)')
     match_post = re_instagram_post.search(url)
     match_reel = re_instagram_reel.search(url)
-    shortcode = match_post.group(1) if match_post else match_reel.group(1) if match_reel else None
+    shortcode = match_post.group(1) if match_post else match_reel.group(
+        1) if match_reel else None
 
     if not shortcode:
         print("Invalid Instagram URL or shortcode not found. Trying Fallback Method.")
@@ -253,13 +275,15 @@ async def insta_fetch_media(session, url):
     try:
         async with session.get(
             "https://instagram230.p.rapidapi.com/post/details",
-            headers={"X-RapidAPI-Key": RAPID_API_KEY, "X-RapidAPI-Host": "instagram230.p.rapidapi.com"},
+            headers={"X-RapidAPI-Key": RAPID_API_KEY,
+                     "X-RapidAPI-Host": "instagram230.p.rapidapi.com"},
             params={"shortcode": shortcode}
         ) as response:
             # print(f"Response Status: {response.status}") #debug
             if response.status == 200:
                 data = await response.json()
-                video_versions = data.get('data', {}).get('xdt_api__v1__media__shortcode__web_info', {}).get('items', [{}])[0].get('video_versions', [])
+                video_versions = data.get('data', {}).get('xdt_api__v1__media__shortcode__web_info', {
+                }).get('items', [{}])[0].get('video_versions', [])
                 if video_versions:
                     video_url = video_versions[0].get('url')
                     if video_versions:
@@ -272,7 +296,7 @@ async def insta_fetch_media(session, url):
                             }
             else:
                 response_text = await response.text()
-                print(f"Response Text: {response_text}")
+                # print(f"Response Text: {response_text}")
                 return await insta_fetch_media_fallback(session, url, 'video', 0)
     except asyncio.TimeoutError:
         print("Primary method timed out. Trying Fallback Method.")
@@ -280,6 +304,7 @@ async def insta_fetch_media(session, url):
     except Exception as e:
         print(f"Exception in primary method: {e}. Trying Fallback Method.")
         return await insta_fetch_media_fallback(session, url, 'video', 0)
+
 
 async def insta_fetch_media_fallback(session, url, content_type, content_counter):
     rapidapi_url = "https://instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com/"
@@ -319,10 +344,13 @@ async def insta_fetch_media_fallback(session, url, content_type, content_counter
         print(f"Error occurred while downloading media: {e}")
         return None
 
-# TikTok    
+# TikTok
+
+
 async def resolve_short_url(url, http_session):
     async with http_session.head(url, allow_redirects=True) as response:
         return str(response.url)
+
 
 async def fetch_tiktok_content_backup(url, http_session):
     tikwm_api_url = 'https://www.tikwm.com/api/'
@@ -336,7 +364,7 @@ async def fetch_tiktok_content_backup(url, http_session):
     async with http_session.post(tikwm_api_url, headers=headers, data=data) as response:
         if response.status == 200:
             tikwm_response = await response.json()
-            print("Backup Method Response:", tikwm_response)
+            # print("Backup Method Response:", tikwm_response)
             if tikwm_response['code'] == 0 and 'data' in tikwm_response:
                 if 'images' in tikwm_response['data'] and 'music' in tikwm_response['data']:
                     images = tikwm_response['data']['images']
@@ -345,7 +373,8 @@ async def fetch_tiktok_content_backup(url, http_session):
                 elif 'play' in tikwm_response['data']:
                     video_url = tikwm_response['data'].get('play')
                     author_id = tikwm_response['data']['author']['id']
-                    music_id = tikwm_response['data']['music_info']['id'] if 'music_info' in tikwm_response['data'] and 'id' in tikwm_response['data']['music_info'] else None
+                    music_id = tikwm_response['data']['music_info']['id'] if 'music_info' in tikwm_response[
+                        'data'] and 'id' in tikwm_response['data']['music_info'] else None
                     return {
                         'type': 'video',
                         'video_url': video_url,
@@ -358,6 +387,7 @@ async def fetch_tiktok_content_backup(url, http_session):
         else:
             print("Backup Method Failed")
             return {'error': "Failed to fetch TikTok content."}
+
 
 async def fetch_tiktok_content(url, http_session, timeout=0.2):
     if '/photo/' in url:
@@ -395,6 +425,7 @@ async def fetch_tiktok_content(url, http_session, timeout=0.2):
         print(f"An error occurred: {e}")
         return None
 
+
 async def download_media(url, http_session):
     async with http_session.get(url) as response:
         if response.status == 200:
@@ -405,6 +436,7 @@ async def download_media(url, http_session):
         else:
             return None
 
+
 async def create_audio_clip(audio_data):
     try:
         async with aiofiles.tempfile.NamedTemporaryFile(suffix='.mp3', mode='wb', delete=False) as tmp_audio:
@@ -413,6 +445,7 @@ async def create_audio_clip(audio_data):
         return AudioFileClip(tmp_audio_path), tmp_audio_path, None
     except Exception as e:
         return None, None, str(e)
+
 
 def process_image(img, video_frame_size, slide_duration):
     try:
@@ -424,7 +457,8 @@ def process_image(img, video_frame_size, slide_duration):
         if new_height < video_frame_size[1]:
             padding_top = (video_frame_size[1] - new_height) // 2
             padding_bottom = video_frame_size[1] - new_height - padding_top
-            img = ImageOps.expand(img, border=(0, padding_top, 0, padding_bottom), fill='black')
+            img = ImageOps.expand(img, border=(
+                0, padding_top, 0, padding_bottom), fill='black')
 
         img_clip = ImageClip(np.array(img)).set_duration(slide_duration)
         return img_clip
@@ -432,10 +466,11 @@ def process_image(img, video_frame_size, slide_duration):
         print(f"Error processing image: {e}")
         return None
 
+
 def create_image_clips(images_data, video_frame_size, slide_duration):
     clips = []
     with ThreadPoolExecutor() as executor:
-        futures = [executor.submit(process_image, img_data, video_frame_size, slide_duration) 
+        futures = [executor.submit(process_image, img_data, video_frame_size, slide_duration)
                    for img_data in images_data if img_data is not None]
         for future in futures:
             clip = future.result()
@@ -443,8 +478,10 @@ def create_image_clips(images_data, video_frame_size, slide_duration):
                 clips.append(clip)
     return clips
 
+
 def calculate_optimal_video_size(images_data, max_width=1920, max_height=1080):
-    average_aspect_ratio = sum((img.width / img.height for img in images_data if img is not None)) / len(images_data)
+    average_aspect_ratio = sum(
+        (img.width / img.height for img in images_data if img is not None)) / len(images_data)
 
     if average_aspect_ratio > 1:
         width = max_width
@@ -462,15 +499,18 @@ def calculate_optimal_video_size(images_data, max_width=1920, max_height=1080):
 
     return width, height
 
+
 async def process_slideshow(image_urls, audio_url, http_session, slideshow_length=3):
-    image_data_coroutines = [download_media(url, http_session) for url in image_urls]
+    image_data_coroutines = [download_media(
+        url, http_session) for url in image_urls]
     image_data_results = await asyncio.gather(*image_data_coroutines)
-    images_data = [Image.open(io.BytesIO(result.getvalue())) if result else None for result in image_data_results]
+    images_data = [Image.open(io.BytesIO(result.getvalue()))
+                   if result else None for result in image_data_results]
 
     audio_data = await download_media(audio_url, http_session)
     if not audio_data:
         return None, "Failed to download audio."
-    
+
     audio_clip, tmp_audio_path, error = await create_audio_clip(audio_data)
     if error:
         return None, error
@@ -484,30 +524,34 @@ async def process_slideshow(image_urls, audio_url, http_session, slideshow_lengt
         slide_duration = audio_clip.duration
     else:
         slide_duration = slideshow_length
-        
+
     slide_duration = slideshow_length
 
     if not images_data or all(img is None for img in images_data):
         return None, "No images to process."
 
     video_frame_size = calculate_optimal_video_size(images_data)
-    processed_clips = create_image_clips(images_data, video_frame_size, slide_duration)
+    processed_clips = create_image_clips(
+        images_data, video_frame_size, slide_duration)
 
     total_video_duration = len(processed_clips) * slide_duration
-    total_loops = math.ceil(total_video_duration / (slide_duration * len(images_data)))
+    total_loops = math.ceil(total_video_duration /
+                            (slide_duration * len(images_data)))
 
     final_clips = []
     for _ in range(total_loops):
         final_clips.extend(processed_clips)
 
     try:
-        looped_audio_clip = audio_loop(audio_clip, duration=total_video_duration)
+        looped_audio_clip = audio_loop(
+            audio_clip, duration=total_video_duration)
 
         async with aiofiles.tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmp_video:
             video_file_path = tmp_video.name
             video = concatenate_videoclips(final_clips, method="compose")
             final_video = video.set_audio(looped_audio_clip)
-            final_video.write_videofile(video_file_path, codec="libx264", audio_codec="aac", fps=24)
+            final_video.write_videofile(
+                video_file_path, codec="libx264", audio_codec="aac", fps=24)
             final_video.close()
 
     except Exception as e:
