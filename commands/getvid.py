@@ -4,6 +4,7 @@ from disnake import ApplicationCommandInteraction
 from utils import bot, autocomp_video_names
 from config import GUILD_IDS
 
+
 def setup(bot):
     @bot.slash_command(
         name="getvid",
@@ -21,7 +22,6 @@ def setup(bot):
     )
     async def getvid(ctx, name: str):
         async with aiosqlite.connect("videos.db") as db:
-            # Updated query to select original_url instead of url
             async with db.execute("SELECT original_url, is_hall_of_fame FROM videos WHERE name = ?", (name,)) as cursor:
                 result = await cursor.fetchone()
 
@@ -29,7 +29,6 @@ def setup(bot):
                     await ctx.response.send_message(f"No video found with name `{name}`", ephemeral=True)
                 else:
                     original_url, is_hall_of_fame = result
-                    # Prefix original_url with "🏆" if the video is in the hall of fame
                     if is_hall_of_fame:
                         original_url = "🏆 " + original_url
                     await ctx.response.send_message(original_url)
