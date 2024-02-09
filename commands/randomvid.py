@@ -4,29 +4,43 @@ import disnake
 import time
 from utils import bot, has_role_check, format_video_url_with_emoji
 from config import MOD_LOG
+import re
+
+
+def extract_url(video_url_formatted):
+    pattern = r'https?://(?:cdn\.discordapp\.com|media\.discordapp\.net)/attachments/[^\s]+?(?=[\s)])'
+    match = re.search(pattern, video_url_formatted)
+    if match:
+        return match.group(0)
+    else:
+        print("No URL matched.")
+    return None
 
 
 class ConfirmView(disnake.ui.View):
-    def __init__(self, original_view, ctx):
+    def __init__(self, original_view, ctx, video_url):
         super().__init__()
         self.original_view = original_view
         self.ctx = ctx
+        self.video_url = video_url
 
     @disnake.ui.button(style=disnake.ButtonStyle.success, label='Confirm')
     async def confirm_button(self, _, interaction):
         deleted_by_user = interaction.user
 
-        video_info = await self.original_view.bot.video_manager.fetch_video_info(
-            self.original_view.video_url)
+        video_info = await self.original_view.bot.video_manager.fetch_video_info(self.video_url)
         if video_info is not None:
             video_name = video_info['name']
             await self.original_view.bot.video_manager.remove_video(
                 video_name, 'name', MOD_LOG, deleted_by_user)
             await interaction.response.send_message(
                 f"Deleted `{video_name}` from the database.")
+
             for item in self.original_view.children:
-                item.disabled = True
-            await self.original_view.ctx.edit_original_message(view=self)
+                if item.label in ["Info", "Delete"]:
+                    item.disabled = True
+
+            await self.original_view.ctx.edit_original_message(view=self.original_view)
 
 
 class VideoActionsView(disnake.ui.View):
@@ -98,7 +112,10 @@ class VideoActionsView(disnake.ui.View):
     @disnake.ui.button(label="Info", style=disnake.ButtonStyle.primary, emoji="ℹ️", custom_id="info_video", row=0)
     async def info_button(self, button, interaction):
         await interaction.response.defer()
-        video_url = self.video_url
+        video_url = extract_url(self.video_url)
+        if not video_url:
+            await interaction.followup.send("Failed to extract video URL.", ephemeral=True)
+            return
         if video_url.startswith("🏆 "):
             video_url = video_url[2:]
         video_info = await self.bot.video_manager.fetch_video_info(video_url)
@@ -143,22 +160,24 @@ class VideoActionsView(disnake.ui.View):
             button.disabled = True
             await interaction.message.edit(view=self)
         else:
-            await interaction.followup.send("Broken, will fix tomorrow, use /getinfo", ephemeral=True)
+            await interaction.followup.send(f"Broken, will fix tomorrow, use `/getinfo url:({video_url})`", ephemeral=True)
 
-    @disnake.ui.button(label="Delete", style=disnake.ButtonStyle.danger, emoji="🗑️",
-                       custom_id="delete_video", row=0)
+    @disnake.ui.button(label="Delete", style=disnake.ButtonStyle.danger, emoji="🗑️", custom_id="delete_video", row=0)
     async def delete_button(self, button, interaction):
         if not await has_role_check(interaction):
             await interaction.response.send_message("You don't have the permissions to delete this video.", ephemeral=True)
             return
-
-        video_url = self.video_url
+        video_url = extract_url(self.video_url)
+        if not video_url:
+            await interaction.response.send_message("Failed to extract video URL.", ephemeral=True)
+            return
         if video_url.startswith("🏆 "):
             video_url = video_url[2:]
         video_info = await self.bot.video_manager.fetch_video_info(video_url)
         if video_info is not None:
             video_name = video_info['name']
-            confirm_view = ConfirmView(self, self.ctx)
+            confirm_view = ConfirmView(
+                self, self.ctx, video_url)
             confirm_message = await interaction.response.send_message("Are you sure you want to delete this video?", view=confirm_view, ephemeral=True)
             confirm_view.message = confirm_message
         else:
