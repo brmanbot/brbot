@@ -143,7 +143,7 @@ class VideoActionsView(disnake.ui.View):
             button.disabled = True
             await interaction.message.edit(view=self)
         else:
-            await interaction.followup.send("Video not found in database.", ephemeral=True)
+            await interaction.followup.send("Broken, will fix tomorrow, use /getinfo", ephemeral=True)
 
     @disnake.ui.button(label="Delete", style=disnake.ButtonStyle.danger, emoji="🗑️",
                        custom_id="delete_video", row=0)
@@ -162,7 +162,7 @@ class VideoActionsView(disnake.ui.View):
             confirm_message = await interaction.response.send_message("Are you sure you want to delete this video?", view=confirm_view, ephemeral=True)
             confirm_view.message = confirm_message
         else:
-            await interaction.response.send_message(f"Video not found in database.")
+            await interaction.response.send_message(f"Broken, will fix tomorrow, use /delvid", ephemeral=True)
 
 
 def setup(bot):
