@@ -29,9 +29,8 @@ def setup(bot):
                     await ctx.response.send_message(f"No video found with name `{name}`", ephemeral=True)
                 else:
                     original_url, is_hall_of_fame = result
-                    if is_hall_of_fame:
-                        original_url = "🏆 " + original_url
-                    await ctx.response.send_message(original_url)
+                    display_text = f"🏆 [{name}]({original_url})" if is_hall_of_fame else f"[{name}]({original_url})"
+                    await ctx.response.send_message(display_text)
 
     @getvid.autocomplete("name")
     async def getvid_autocomplete(inter: ApplicationCommandInteraction, user_input: str):
