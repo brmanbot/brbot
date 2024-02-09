@@ -3,6 +3,7 @@ import datetime
 import io
 import json
 import os
+import random
 import re
 import time
 from urllib.parse import urlparse
@@ -99,7 +100,19 @@ async def has_role_check(ctx):
     return is_bossman or is_allowed_user
 
 
+def format_video_url_with_emoji(guild, video_url):
+    all_emojis = list(guild.emojis)
+    if all_emojis:
+        random_emoji = random.choice(all_emojis)
+        emoji_str = str(random_emoji)
+    else:
+        emoji_str = "🎥"
+
+    return f"{emoji_str} [⠀]({video_url})"
+
 # Setup Data Management Functions
+
+
 def load_setup_data(guild_id):
     guild_id = str(guild_id)
     if not os.path.exists("config_data.json"):

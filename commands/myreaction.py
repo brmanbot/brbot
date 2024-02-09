@@ -3,6 +3,8 @@ from utils import bot
 from config import GUILD_IDS
 from disnake.ext import commands
 from disnake import Option, OptionType
+from utils import format_video_url_with_emoji
+
 
 def setup(bot):
     @bot.slash_command(
@@ -36,15 +38,14 @@ def setup(bot):
         if not available_videos:
             await ctx.followup.send(
                 "No available videos for the chosen color or all are under cooldown. "
-                "Contact brman to fix."
             )
             return
 
         chosen_video = available_videos[0]
         bot.video_manager.played_videos[chosen_video] = current_time
 
-        if chosen_video in bot.video_manager.hall_of_fame:
-            chosen_video = "🏆 " + chosen_video
+        formatted_video_url = format_video_url_with_emoji(
+            ctx.guild, chosen_video)
 
-        await ctx.edit_original_message(content=f"{chosen_video}")
+        await ctx.edit_original_message(content=formatted_video_url)
         bot.video_manager.save_data()

@@ -156,13 +156,13 @@ def setup(bot):
                 member for member in guild.members if yellow_role in member.roles and member.id != user.id]
 
             if yellow_role_users:
-                user_message += f"\nDoes that change your mind {yellow_role.mention} {random_emojis[0]}❓[᲼]({chosen_video}) "
+                user_message += f"\nDoes that change your mind {yellow_role.mention} {random_emojis[0]}❓[⠀]({chosen_video}) "
                 message_in_target_channel_id = await send_message_and_add_reaction(target_channel, user_message)
                 reaction_message_ids.setdefault(payload.guild_id, []).append(
                     message_in_target_channel_id)
             else:
-                user_message += f"[᲼]({chosen_video})"
+                user_message += f"[⠀]({chosen_video})"
                 await target_channel.send(user_message)
         else:
-            user_message += f"[᲼]({chosen_video})"
+            user_message += f"[⠀]({chosen_video})"
             await target_channel.send(user_message)

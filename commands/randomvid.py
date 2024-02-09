@@ -2,7 +2,7 @@ import asyncio
 import re
 import disnake
 import time
-from utils import bot, has_role_check
+from utils import bot, has_role_check, format_video_url_with_emoji
 from config import MOD_LOG
 
 
@@ -43,7 +43,6 @@ class VideoActionsView(disnake.ui.View):
         self.start_time = start_time if start_time is not None else time.time()
 
         remaining_time = 180 - (time.time() - self.start_time)
-
         if remaining_time <= 0:
             super().__init__(timeout=None)
             self.disable_all_buttons()
@@ -75,8 +74,8 @@ class VideoActionsView(disnake.ui.View):
         if available_videos:
             new_video_url = available_videos[0]
             self.bot.video_manager.played_videos[new_video_url] = current_time
-            display_video_url = "🏆 " +\
-                 new_video_url if new_video_url in self.bot.video_manager.hall_of_fame else new_video_url
+            display_video_url = format_video_url_with_emoji(
+                self.ctx.guild, new_video_url)
             view = VideoActionsView(
                 self.ctx, display_video_url, self.bot, self.selected_colors,
                 self.info_message_id, self.info_message_channel_id, time.time())
@@ -85,7 +84,7 @@ class VideoActionsView(disnake.ui.View):
                 if item.custom_id == "info_video":
                     item.disabled = False
 
-            new_message = await interaction.followup.send(content=f"{display_video_url}", view=view)
+            new_message = await interaction.followup.send(content=display_video_url, view=view)
             self.bot.active_videos[new_message.id] = view
 
             asyncio.create_task(self.disable_buttons_after_delay(
@@ -204,11 +203,11 @@ def setup(bot):
         chosen_video = available_videos[0]
         bot.video_manager.played_videos[chosen_video] = current_time
 
-        display_video = "🏆 " +\
-             chosen_video if chosen_video in bot.video_manager.hall_of_fame else chosen_video
+        display_video_url = format_video_url_with_emoji(
+            ctx.guild, chosen_video)
 
-        view = VideoActionsView(ctx, display_video, bot, colours)
-        message = await ctx.edit_original_message(content=f"{display_video}", view=view)
+        view = VideoActionsView(ctx, display_video_url, bot, colours)
+        message = await ctx.edit_original_message(content=display_video_url, view=view)
         bot.active_videos[message.id] = view
 
         asyncio.create_task(view.disable_buttons_after_delay(

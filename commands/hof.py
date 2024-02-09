@@ -2,7 +2,7 @@ import random
 import disnake
 from disnake import ButtonStyle
 from config import GUILD_IDS
-from video_manager import VideoManager
+from utils import format_video_url_with_emoji
 
 
 class HallOfFameSelector(disnake.ui.View):
@@ -38,6 +38,8 @@ class HallOfFameSelector(disnake.ui.View):
 
     async def update_video(self, interaction):
         video_url = self.videos[self.current_video][1]
+        formatted_video_url = format_video_url_with_emoji(
+            self.ctx.guild, video_url)
 
         if self.current_video == 0:
             self.previous_button.disabled = True
@@ -49,7 +51,7 @@ class HallOfFameSelector(disnake.ui.View):
         else:
             self.next_button.disabled = False
 
-        await interaction.response.edit_message(content=video_url, view=self)
+        await interaction.response.edit_message(content=formatted_video_url, view=self)
 
 
 def setup(bot):
@@ -66,5 +68,7 @@ def setup(bot):
             await ctx.send("There are currently no videos in the hall of fame.")
             return
 
+        formatted_first_video_url = format_video_url_with_emoji(
+            ctx.guild, videos[0])
         view = HallOfFameSelector(ctx, videos)
-        await ctx.response.send_message(videos[0], view=view)
+        await ctx.response.send_message(formatted_first_video_url, view=view)
