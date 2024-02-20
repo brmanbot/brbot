@@ -11,7 +11,7 @@ from private_config import TIKTOK_ARCHIVE_CHANNEL
 from urllib.parse import urlparse
 from utils import (
     bot, autocomp_colours, fetch_tiktok_content, shorten_url,
-    has_role_check, insta_fetch_media
+    has_role_check, insta_fetch_media, extract_urls
 )
 
 
@@ -124,7 +124,11 @@ def setup(bot):
 
         await inter.response.send_message("Processing your request...", ephemeral=True)
 
-        normalized_url = normalize_discord_url(url)
+        extracted_urls = extract_urls(url)
+        if not extracted_urls:
+            await inter.followup.send("No valid URL found in the provided text.", ephemeral=True)
+            return
+        normalized_url = normalize_discord_url(extracted_urls[0])
 
         content_type = "tiktok" if "tiktok.com" in normalized_url else "instagram" if "instagram.com" in normalized_url else "discord"
         date_added = datetime.now().strftime("%d/%m/%Y")

@@ -268,6 +268,12 @@ async def remove_role_later(member, role_id, duration):
         json.dump(role_timestamps, file)
 
 
+def extract_urls(text):
+    pattern = r'https?://[^\s]+'
+    urls = re.findall(pattern, text)
+    return urls
+
+
 # Instagram
 re_instagram_post = re.compile(r'/p/([^/?]+)')
 re_instagram_reel = re.compile(r'/reel/([^/?]+)')

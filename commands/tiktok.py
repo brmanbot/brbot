@@ -4,8 +4,9 @@ import disnake
 import io
 import re
 import asyncio
-from utils import download_media, fetch_tiktok_content, process_slideshow, resolve_short_url
-            
+from utils import download_media, fetch_tiktok_content, process_slideshow, resolve_short_url, extract_urls
+
+
 def setup(bot):
     @bot.slash_command(
         name="tiktok",
@@ -52,12 +53,24 @@ def setup(bot):
         await ctx.send("Processing your request...", ephemeral=True)
         first_message = True
 
+        extracted_urls = extract_urls(url1)
+        if not extracted_urls:
+            await ctx.send("No valid URL found in the first input.", ephemeral=True)
+            return
+        url1 = extracted_urls[0]
+
         urls = {'url1': url1, **urls}
 
         for url_key in sorted(urls.keys()):
-            original_url = urls[url_key]
-            if not original_url:
+            original_text = urls[url_key]
+            if not original_text:
                 continue
+
+            extracted_urls = extract_urls(original_text)
+            if not extracted_urls:
+                await ctx.send(f"No valid URL found in {url_key}.", ephemeral=True)
+                continue
+            original_url = extracted_urls[0]
 
             resolved_url = await resolve_short_url(original_url, ctx.bot.http_session) if original_url.startswith("https://vm.tiktok.com/") else original_url
             tiktok_response = await fetch_tiktok_content(resolved_url, ctx.bot.http_session)
@@ -76,7 +89,6 @@ def setup(bot):
                     await ctx.send("Received unexpected response type.", ephemeral=True)
             else:
                 await ctx.send("Failed to process the TikTok URL.", ephemeral=True)
-
 
     async def send_video(ctx, video_url, caption, first_message):
         video_data = await download_media(video_url, ctx.bot.http_session)
@@ -100,7 +112,8 @@ def setup(bot):
                 message_content = None
             async with aiofiles.open(video_file, 'rb') as f:
                 file_content = await f.read()
-            file = disnake.File(fp=io.BytesIO(file_content), filename=os.path.basename(video_file))
+            file = disnake.File(fp=io.BytesIO(file_content),
+                                filename=os.path.basename(video_file))
             await ctx.channel.send(content=message_content, file=file)
             await asyncio.to_thread(os.remove, video_file)
         elif error_message:
