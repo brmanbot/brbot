@@ -10,7 +10,7 @@ import io
 import re
 import json
 from private_config import RAPID_API_KEY
-from utils import insta_fetch_media, insta_fetch_media_fallback
+from utils import insta_fetch_media, insta_fetch_media_fallback, extract_urls
 
 re_instagram_post = re.compile(r'/p/([^/?]+)')
 re_instagram_reel = re.compile(r'/reel/([^/?]+)')
@@ -25,7 +25,8 @@ async def process_urls(ctx, urls, caption, session):
         match = re_instagram_post.search(url) or re_instagram_reel.search(url)
         if match:
             shortcode = match.group(1)
-            primary_tasks.append(asyncio.create_task(insta_fetch_media(session, url)))
+            primary_tasks.append(asyncio.create_task(
+                insta_fetch_media(session, url)))
         else:
             await ctx.send(f"Invalid Instagram URL: {url}", ephemeral=True)
             continue
@@ -34,7 +35,8 @@ async def process_urls(ctx, urls, caption, session):
 
     for url, result in zip(urls, primary_results):
         if isinstance(result, Exception) or result is None or result.get('media_content') is None:
-            fallback_tasks.append(asyncio.create_task(insta_fetch_media_fallback(session, url, "video", content_counter)))
+            fallback_tasks.append(asyncio.create_task(
+                insta_fetch_media_fallback(session, url, "video", content_counter)))
             content_counter += 1
 
     fallback_results = await asyncio.gather(*fallback_tasks, return_exceptions=True) if fallback_tasks else []
@@ -64,11 +66,14 @@ async def process_urls(ctx, urls, caption, session):
                     else:
                         message_content = None
 
-                    file = disnake.File(fp=io.BytesIO(media_content), filename=filename)
+                    file = disnake.File(fp=io.BytesIO(
+                        media_content), filename=filename)
                     await ctx.channel.send(content=message_content, file=file)
                     content_counter += 1
         else:
-            print(f"Failed to process URL: {result.get('original_link', 'Unknown URL')}")
+            print(
+                f"Failed to process URL: {result.get('original_link', 'Unknown URL')}")
+
 
 def setup(bot):
     @bot.slash_command(
