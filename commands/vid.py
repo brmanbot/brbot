@@ -5,7 +5,7 @@ import re
 import aiosqlite
 import disnake
 import requests
-from disnake import ApplicationCommandInteraction
+from disnake import ApplicationCommandInteraction, OptionChoice
 
 from config import GUILD_IDS
 from private_config import TIKTOK_ARCHIVE_CHANNEL
@@ -91,11 +91,13 @@ def normalize_discord_url(url):
     return url
 
 
-def normalize_hashtags(hashtags: str) -> str:
-    hashtag_list = [tag.strip('#').lower()
-                    for tag in re.split('[, ]+', hashtags.strip())]
-    unique_hashtags = sorted(set(hashtag_list))
-    normalized_hashtags = ','.join(unique_hashtags)
+def normalize_hashtags(hashtags: list[str]) -> str:
+    if not isinstance(hashtags, list):
+        hashtags = [hashtags]
+
+    normalized_hashtags_list = [
+        tag.strip('#').lower() for tag in hashtags if tag]
+    normalized_hashtags = ','.join(sorted(set(normalized_hashtags_list)))
 
     return normalized_hashtags
 
@@ -124,19 +126,24 @@ def setup(bot):
                 "Provide the URL of the video to save (TikTok, Instagram Reels, or Discord video URL).",
                 type=disnake.OptionType.string,
                 required=True
-            ),
-            disnake.Option(
-                "hashtags",
-                "Enter hashtags related to the video, separated by commas, to improve searchability.",
-                type=disnake.OptionType.string,
-                required=False
             )
+        ] + [
+            disnake.Option(
+                name=f"hashtag_{i}",
+                description=f"Hashtag {i}.",
+                type=disnake.OptionType.string,
+                required=False,
+            ) for i in range(1, 11)
         ]
     )
-    async def vid(inter: ApplicationCommandInteraction, colour: str, name: str, url: str, hashtags: str = ""):
+    async def vid(inter: ApplicationCommandInteraction, colour: str, name: str, url: str, **kwargs):
         if not await has_role_check(inter):
             await inter.response.send_message("You do not have permission to use this command.", ephemeral=True)
             return
+
+        hashtags = [kwargs[f"hashtag_{i}"]
+                    for i in range(1, 11) if f"hashtag_{i}" in kwargs]
+        normalized_hashtags = normalize_hashtags(','.join(hashtags))
 
         await inter.response.send_message("Processing your request...", ephemeral=True)
 
@@ -198,14 +205,6 @@ def setup(bot):
 
         bot.video_manager.save_data()
         await inter.followup.send(f"Saved `{name}` in the `{colour}` database with hashtags: `{normalized_hashtags}`.", ephemeral=True)
-
-    @vid.autocomplete("hashtags")
-    async def hashtags_autocomplete(inter: ApplicationCommandInteraction, user_input: str):
-        all_hashtags = await fetch_all_hashtags()
-        filtered_hashtags = [
-            hashtag for hashtag in all_hashtags if hashtag.startswith(user_input.lower())]
-        unique_filtered_hashtags = list(set(filtered_hashtags))[:25]
-        return [disnake.OptionChoice(name=hashtag, value=hashtag) for hashtag in unique_filtered_hashtags]
 
     @vid.autocomplete("colour")
     async def vid_autocomplete_colour(inter: ApplicationCommandInteraction, user_input: str):

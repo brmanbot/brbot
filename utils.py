@@ -126,15 +126,16 @@ async def autocomp_video_names(inter: ApplicationCommandInteraction, user_input:
 
 async def fetch_all_hashtags():
     async with aiosqlite.connect("videos.db") as db:
-        query = "SELECT hashtags FROM videos WHERE hashtags IS NOT NULL AND hashtags != ''"
+        query = "SELECT DISTINCT hashtags FROM videos WHERE hashtags IS NOT NULL AND hashtags != ''"
         cursor = await db.execute(query)
         rows = await cursor.fetchall()
+        # Flatten the list of hashtag strings into a single list with all hashtags
         all_hashtags = set()
         for row in rows:
-            hashtags_list = row[0].split(',')
-            for hashtag in hashtags_list:
-                normalized_hashtag = hashtag.strip().lower()
-                all_hashtags.add(normalized_hashtag)
+            # Split each row's hashtags and add to the set
+            hashtags = row[0].split(',')
+            for ht in hashtags:
+                all_hashtags.add(ht.strip().lower())
     return list(all_hashtags)
 
 
