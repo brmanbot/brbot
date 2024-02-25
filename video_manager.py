@@ -56,19 +56,29 @@ class VideoManager:
 
     async def initialize_database(self):
         async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute("PRAGMA table_info(videos)")
+            columns = await cursor.fetchall()
+            if 'hashtags' not in [column[1] for column in columns]:
+                await db.execute("""
+                    ALTER TABLE videos
+                    ADD COLUMN hashtags TEXT
+                """)
+
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS videos (
                     id INTEGER PRIMARY KEY,
                     name TEXT,
-                    original_url TEXT,
+                    url TEXT,
                     color TEXT,
+                    original_url TEXT,
                     added_by TEXT,
                     tiktok_author_link TEXT,
                     tiktok_original_link TEXT,
                     tiktok_sound_link TEXT,
                     insta_original_link TEXT,
                     date_added TEXT,
-                    is_hall_of_fame BOOLEAN DEFAULT 0
+                    is_hall_of_fame BOOLEAN DEFAULT 0,
+                    hashtags TEXT
                 )
             """)
             await db.commit()
@@ -273,21 +283,20 @@ class VideoManager:
                             ("Instagram URL", original_url))
         return conflict_details
 
-    async def add_video_to_database(self, name, url, color, original_url, added_by, tiktok_author_link=None, tiktok_original_link=None, tiktok_sound_link=None, insta_original_link=None, date_added=None):
+    async def add_video_to_database(self, name, url, color, original_url, added_by, tiktok_author_link=None, tiktok_original_link=None, tiktok_sound_link=None, insta_original_link=None, date_added=None, hashtags=None):
         async with aiosqlite.connect(self.db_path) as db:
             query = """
                 INSERT INTO videos 
-                (name, url, color, original_url, added_by, tiktok_author_link, tiktok_original_link, tiktok_sound_link, insta_original_link, date_added) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (name, url, color, original_url, added_by, tiktok_author_link, tiktok_original_link, tiktok_sound_link, insta_original_link, date_added, hashtags) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
             values = (name, url, color, original_url, added_by, tiktok_author_link,
-                      tiktok_original_link, tiktok_sound_link, insta_original_link, date_added)
+                      tiktok_original_link, tiktok_sound_link, insta_original_link, date_added, hashtags)
             try:
                 await db.execute(query, values)
                 await db.commit()
                 if color in self.bot.video_lists and original_url not in self.bot.video_lists[color]:
-                    self.bot.video_lists[color].append(
-                        original_url)
+                    self.bot.video_lists[color].append(original_url)
                     fisher_yates_shuffle(self.bot.video_lists[color])
             except aiosqlite.IntegrityError as e:
                 print(f"Error adding video to the database: {e}")

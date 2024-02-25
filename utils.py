@@ -13,7 +13,7 @@ import aiosqlite
 import pyshorteners
 import disnake
 from disnake.ext import commands
-from disnake import ApplicationCommandInteraction
+from disnake import ApplicationCommandInteraction, OptionChoice
 from disnake.ext.commands import InteractionBot
 import requests
 from PIL import Image, ImageOps
@@ -82,12 +82,60 @@ async def autocomp_colours(inter: ApplicationCommandInteraction, user_input: str
     return suggestions
 
 
-async def autocomp_video_names(inter: ApplicationCommandInteraction, user_input: str):
+async def fetch_videos_by_name_or_hashtag(identifier: str):
+    if identifier.strip() in ['#', '', '# '] or len(identifier.strip('# ')) < 1:
+        return []
     async with aiosqlite.connect("videos.db") as db:
-        async with db.execute("SELECT name FROM videos WHERE name LIKE ? ORDER BY name ASC LIMIT 25", (f"%{user_input}%",)) as cursor:
-            results = await cursor.fetchall()
-            suggestions = [result[0] for result in results]
-            return suggestions
+        identifier_norm = identifier.lower().strip('%')
+        like_pattern = f'%{identifier_norm}%'
+
+        if '#' in identifier:
+            search_terms = re.findall(r'#\w+', identifier)
+            search_terms = [term.strip('#') for term in search_terms]
+            like_patterns = [f'%{term.lower()}%' for term in search_terms]
+
+            query_conditions = " OR ".join(
+                ["',' || LOWER(hashtags) || ',' LIKE ?" for _ in like_patterns])
+            query = f"SELECT name, original_url, is_hall_of_fame, hashtags FROM videos WHERE {query_conditions}"
+
+            async with db.execute(query, like_patterns) as cursor:
+                search_results = await cursor.fetchall()
+        else:
+            query = """
+            SELECT name, original_url, is_hall_of_fame, hashtags FROM videos
+            WHERE LOWER(name) LIKE ? OR ',' || LOWER(hashtags) || ',' LIKE ?
+            """
+            async with db.execute(query, (like_pattern, like_pattern)) as cursor:
+                search_results = await cursor.fetchall()
+
+    return search_results
+
+
+async def autocomp_video_names(inter: ApplicationCommandInteraction, user_input: str):
+    video_results = await fetch_videos_by_name_or_hashtag(user_input)
+    suggestions = []
+
+    for name, _, _, hashtags in video_results:
+        formatted_hashtags = ', '.join(
+            [f'#{tag}' for tag in hashtags.split(',') if tag.strip()]) if hashtags else ''
+        suggestion_text = f"{name} [{formatted_hashtags}]" if formatted_hashtags else name
+        suggestions.append(OptionChoice(name=suggestion_text, value=name))
+
+    return suggestions[:25]
+
+
+async def fetch_all_hashtags():
+    async with aiosqlite.connect("videos.db") as db:
+        query = "SELECT hashtags FROM videos WHERE hashtags IS NOT NULL AND hashtags != ''"
+        cursor = await db.execute(query)
+        rows = await cursor.fetchall()
+        all_hashtags = set()
+        for row in rows:
+            hashtags_list = row[0].split(',')
+            for hashtag in hashtags_list:
+                normalized_hashtag = hashtag.strip().lower()
+                all_hashtags.add(normalized_hashtag)
+    return list(all_hashtags)
 
 
 async def has_role_check(ctx):

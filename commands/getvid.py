@@ -1,7 +1,7 @@
 import aiosqlite
 import disnake
-from disnake import ApplicationCommandInteraction
-from utils import bot, autocomp_video_names
+from disnake import ApplicationCommandInteraction, OptionChoice
+from utils import bot, autocomp_video_names, fetch_videos_by_name_or_hashtag
 from config import GUILD_IDS
 
 
@@ -12,26 +12,29 @@ def setup(bot):
         guild_ids=GUILD_IDS,
         options=[
             disnake.Option(
-                "name",
-                "The name of the video to retrieve.",
+                "identifier",
+                "The name or related hashtag of the video to retrieve.",
                 type=disnake.OptionType.string,
                 required=True,
                 autocomplete=True
             )
         ]
     )
-    async def getvid(ctx, name: str):
+    async def getvid(ctx: ApplicationCommandInteraction, identifier: str):
+        video_name = identifier.strip()
+
         async with aiosqlite.connect("videos.db") as db:
-            async with db.execute("SELECT original_url, is_hall_of_fame FROM videos WHERE name = ?", (name,)) as cursor:
-                result = await cursor.fetchone()
+            query = "SELECT name, original_url, is_hall_of_fame FROM videos WHERE LOWER(name) = LOWER(?)"
+            async with db.execute(query, (video_name,)) as cursor:
+                video = await cursor.fetchone()
 
-                if result is None:
-                    await ctx.response.send_message(f"No video found with name `{name}`", ephemeral=True)
-                else:
-                    original_url, is_hall_of_fame = result
-                    display_text = f"🏆 [{name}]({original_url})" if is_hall_of_fame else f"[{name}]({original_url})"
-                    await ctx.response.send_message(display_text)
+        if video:
+            name, original_url, is_hall_of_fame = video
+            hof_icon = "🏆 " if is_hall_of_fame else ""
+            await ctx.response.send_message(f"{hof_icon}[{name}]({original_url})")
+        else:
+            await ctx.response.send_message(f"No video found with the name '{video_name}'.", ephemeral=True)
 
-    @getvid.autocomplete("name")
+    @getvid.autocomplete("identifier")
     async def getvid_autocomplete(inter: ApplicationCommandInteraction, user_input: str):
         return await autocomp_video_names(inter, user_input)

@@ -1,5 +1,6 @@
 import io
 from datetime import datetime
+import re
 
 import aiosqlite
 import disnake
@@ -10,7 +11,7 @@ from config import GUILD_IDS
 from private_config import TIKTOK_ARCHIVE_CHANNEL
 from urllib.parse import urlparse
 from utils import (
-    bot, autocomp_colours, fetch_tiktok_content, shorten_url,
+    bot, autocomp_colours, fetch_all_hashtags, fetch_tiktok_content, shorten_url,
     has_role_check, insta_fetch_media, extract_urls
 )
 
@@ -90,6 +91,15 @@ def normalize_discord_url(url):
     return url
 
 
+def normalize_hashtags(hashtags: str) -> str:
+    hashtag_list = [tag.strip('#').lower()
+                    for tag in re.split('[, ]+', hashtags.strip())]
+    unique_hashtags = sorted(set(hashtag_list))
+    normalized_hashtags = ','.join(unique_hashtags)
+
+    return normalized_hashtags
+
+
 def setup(bot):
     @bot.slash_command(
         name="vid",
@@ -114,10 +124,16 @@ def setup(bot):
                 "Provide the URL of the video to save (TikTok, Instagram Reels, or Discord video URL).",
                 type=disnake.OptionType.string,
                 required=True
+            ),
+            disnake.Option(
+                "hashtags",
+                "Enter hashtags related to the video, separated by commas, to improve searchability.",
+                type=disnake.OptionType.string,
+                required=False
             )
         ]
     )
-    async def vid(inter: ApplicationCommandInteraction, colour: str, name: str, url: str):
+    async def vid(inter: ApplicationCommandInteraction, colour: str, name: str, url: str, hashtags: str = ""):
         if not await has_role_check(inter):
             await inter.response.send_message("You do not have permission to use this command.", ephemeral=True)
             return
@@ -138,6 +154,9 @@ def setup(bot):
         original_discord_url = normalized_url if content_type == "discord" else None
         tiktok_original_link = original_link if content_type == "tiktok" else None
         insta_original_link = original_link if content_type == "instagram" else None
+
+        normalized_hashtags = normalize_hashtags(
+            hashtags)
 
         conflict_details = await bot.video_manager.video_exists(
             name, original_discord_url, tiktok_original_link, insta_original_link)
@@ -173,11 +192,20 @@ def setup(bot):
             tiktok_original_link=tiktok_original_link,
             tiktok_sound_link=sound_link if content_type == "tiktok" else None,
             insta_original_link=insta_original_link,
-            date_added=date_added
+            date_added=date_added,
+            hashtags=normalized_hashtags
         )
 
         bot.video_manager.save_data()
-        await inter.followup.send(f"Saved `{name}` in the `{colour}` database.", ephemeral=True)
+        await inter.followup.send(f"Saved `{name}` in the `{colour}` database with hashtags: `{normalized_hashtags}`.", ephemeral=True)
+
+    @vid.autocomplete("hashtags")
+    async def hashtags_autocomplete(inter: ApplicationCommandInteraction, user_input: str):
+        all_hashtags = await fetch_all_hashtags()
+        filtered_hashtags = [
+            hashtag for hashtag in all_hashtags if hashtag.startswith(user_input.lower())]
+        unique_filtered_hashtags = list(set(filtered_hashtags))[:25]
+        return [disnake.OptionChoice(name=hashtag, value=hashtag) for hashtag in unique_filtered_hashtags]
 
     @vid.autocomplete("colour")
     async def vid_autocomplete_colour(inter: ApplicationCommandInteraction, user_input: str):
