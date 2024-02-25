@@ -89,19 +89,24 @@ async def fetch_videos_by_name_or_hashtag(identifier: str):
         identifier_norm = identifier.lower().strip('%')
         like_pattern = f'%{identifier_norm}%'
 
-        if '#' in identifier:
+        # Check if the identifier is specifically for HOF videos
+        if identifier_norm == 'hof':
+            query = """
+            SELECT name, original_url, is_hall_of_fame, hashtags, added_by FROM videos
+            WHERE is_hall_of_fame = 1
+            """
+            async with db.execute(query) as cursor:
+                search_results = await cursor.fetchall()
+        elif '#' in identifier:
             search_terms = re.findall(r'#\w+', identifier)
             search_terms = [term.strip('#') for term in search_terms]
             like_patterns = [f'%{term.lower()}%' for term in search_terms]
 
             query_conditions = " OR ".join(
-                ["',' || LOWER(hashtags) || ',' LIKE ?" for _ in like_patterns] +
-                ["LOWER(added_by) LIKE ?" for _ in like_patterns]
-            )
-            like_patterns_extended = like_patterns + [f'%{identifier_norm}%']
+                ["',' || LOWER(hashtags) || ',' LIKE ?" for _ in like_patterns])
             query = f"SELECT name, original_url, is_hall_of_fame, hashtags, added_by FROM videos WHERE {query_conditions}"
 
-            async with db.execute(query, like_patterns_extended) as cursor:
+            async with db.execute(query, like_patterns) as cursor:
                 search_results = await cursor.fetchall()
         else:
             query = """
@@ -118,14 +123,21 @@ async def autocomp_video_names(inter: ApplicationCommandInteraction, user_input:
     video_results = await fetch_videos_by_name_or_hashtag(user_input)
     suggestions = []
 
-    for name, _, _, hashtags, added_by in video_results:
+    for name, _, is_hall_of_fame, hashtags, added_by in video_results:
         added_by_clean = added_by.split('#')[0]
+        hof_emoji = "🏆" if is_hall_of_fame else ""
 
         formatted_hashtags = ', '.join(
             [f'#{tag}' for tag in hashtags.split(',') if tag.strip()]) if hashtags else ''
 
-        suggestion_text = f"{name} [{added_by_clean}]" + \
-            (f" [{formatted_hashtags}]" if formatted_hashtags else "")
+        # Construct suggestion text with conditional inclusion of HOF emoji
+        # Remove trailing space if no HOF emoji
+        suggestion_text = f"{name} {hof_emoji}".strip()
+        if added_by_clean:
+            suggestion_text += f" [{added_by_clean}]"
+        if formatted_hashtags:
+            suggestion_text += f" [{formatted_hashtags}]"
+
         suggestions.append(OptionChoice(name=suggestion_text, value=name))
 
     return suggestions[:25]
