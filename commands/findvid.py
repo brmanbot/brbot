@@ -65,25 +65,48 @@ def setup(bot):
 
 
 def create_embed(video_info):
-    color_map = {"yellow": 0xFFFF00, "red": 0xFF0000, "green": 0x00FF00}
-    hex_color = color_map.get(video_info['color'].lower(), 0x000000)
+    color_map = {
+        "yellow": 0xFFFF00,
+        "red": 0xFF0000,
+        "green": 0x00FF00
+    }
+    color_name = video_info['color'].lower()
+    hex_color = color_map.get(color_name, 0x000000)
+
     added_by = video_info['added_by'].split(
         '#')[0] if '#' in video_info['added_by'] else video_info['added_by']
-    embed_description = f"**Name:** `{video_info['name']}`\n**Colour:** `{video_info['color']}`\n**Added by:** `{added_by}`"
+
+    hashtags = video_info.get('hashtags', '')
+    formatted_hashtags = ', '.join([f'#{tag.strip()}' for tag in hashtags.split(
+        ',') if tag.strip()]) if hashtags else 'None'
+
+    hof_status = "🏆" if video_info.get('is_hall_of_fame') else "None"
+
+    embed_description = f"**Name:** `{video_info['name']}`\n**Colour:** `{video_info['color']}`\n**Added by:** `{added_by}`\n**HOF Status:** `{hof_status}`"
+
+    if formatted_hashtags:
+        embed_description += f"\n**Hashtags:** `{formatted_hashtags}`"
+    else:
+        embed_description += "\n**Hashtags:** `None`"
 
     if 'date_added' in video_info and video_info['date_added']:
         date_added = video_info['date_added']
         embed_description += f"\n**Date added:** `{date_added}`"
 
-    embed = disnake.Embed(description=embed_description, color=hex_color)
+    embed = disnake.Embed(
+        description=embed_description,
+        color=hex_color
+    )
 
     if video_info.get('tiktok_original_link'):
         tiktok_value = f"[Author]({video_info['tiktok_author_link']})\n[Original URL]({video_info['tiktok_original_link']})\n[Sound URL]({video_info['tiktok_sound_link']})"
-        embed.add_field(name="TikTok", value=tiktok_value, inline=False)
+        embed.add_field(
+            name="TikTok", value=tiktok_value, inline=False)
 
     if video_info.get('insta_original_link'):
         insta_value = f"[Original URL]({video_info['insta_original_link']})"
-        embed.add_field(name="Instagram", value=insta_value, inline=False)
+        embed.add_field(name="Instagram",
+                        value=insta_value, inline=False)
 
     misc_value = f"[Discord backup URL]({video_info['original_url']})"
     embed.add_field(name="Misc.", value=misc_value, inline=False)

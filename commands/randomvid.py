@@ -116,8 +116,6 @@ class VideoActionsView(disnake.ui.View):
         if not video_url:
             await interaction.followup.send("Failed to extract video URL.", ephemeral=True)
             return
-        if video_url.startswith("🏆 "):
-            video_url = video_url[2:]
         video_info = await self.bot.video_manager.fetch_video_info(video_url)
 
         if video_info:
@@ -132,7 +130,18 @@ class VideoActionsView(disnake.ui.View):
             added_by = video_info['added_by'].split(
                 '#')[0] if '#' in video_info['added_by'] else video_info['added_by']
 
-            embed_description = f"**Name:** `{video_info['name']}`\n**Colour:** `{video_info['color']}`\n**Added by:** `{added_by}`"
+            hashtags = video_info.get('hashtags', '')
+            formatted_hashtags = ', '.join([f'#{tag.strip()}' for tag in hashtags.split(
+                ',') if tag.strip()]) if hashtags else 'None'
+
+            hof_status = "🏆" if video_info.get('is_hall_of_fame') else "None"
+
+            embed_description = f"**Name:** `{video_info['name']}`\n**Colour:** `{video_info['color']}`\n**Added by:** `{added_by}`\n**HOF Status:** `{hof_status}`"
+
+            if formatted_hashtags:
+                embed_description += f"\n**Hashtags:** `{formatted_hashtags}`"
+            else:
+                embed_description += "\n**Hashtags:** `None`"
 
             if 'date_added' in video_info and video_info['date_added']:
                 date_added = video_info['date_added']
@@ -160,7 +169,7 @@ class VideoActionsView(disnake.ui.View):
             button.disabled = True
             await interaction.message.edit(view=self)
         else:
-            await interaction.followup.send(f"Broken, will fix tomorrow, use `/getinfo url:({video_url})`", ephemeral=True)
+            await interaction.followup.send("No video information found.", ephemeral=True)
 
     @disnake.ui.button(label="Delete", style=disnake.ButtonStyle.danger, emoji="🗑️", custom_id="delete_video", row=0)
     async def delete_button(self, button, interaction):

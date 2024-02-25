@@ -244,16 +244,18 @@ class VideoManager:
         async with aiosqlite.connect(self.db_path) as db:
             query = """
                 SELECT name, color, added_by, tiktok_author_link, tiktok_original_link,
-                    tiktok_sound_link, insta_original_link, date_added, original_url
+                    tiktok_sound_link, insta_original_link, date_added, original_url,
+                    is_hall_of_fame, hashtags
                 FROM videos
-                WHERE original_url = ? OR original_url = ?
+                WHERE original_url = ?
             """
-            values = (url, url)
+            values = (url,)
             async with db.execute(query, values) as cursor:
                 result = await cursor.fetchone()
                 if result:
                     columns = ["name", "color", "added_by", "tiktok_author_link", "tiktok_original_link",
-                               "tiktok_sound_link", "insta_original_link", "date_added", "original_url"]
+                               "tiktok_sound_link", "insta_original_link", "date_added", "original_url",
+                               "is_hall_of_fame", "hashtags"]
                     return dict(zip(columns, result))
                 else:
                     return None
