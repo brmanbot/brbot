@@ -95,17 +95,20 @@ async def fetch_videos_by_name_or_hashtag(identifier: str):
             like_patterns = [f'%{term.lower()}%' for term in search_terms]
 
             query_conditions = " OR ".join(
-                ["',' || LOWER(hashtags) || ',' LIKE ?" for _ in like_patterns])
-            query = f"SELECT name, original_url, is_hall_of_fame, hashtags FROM videos WHERE {query_conditions}"
+                ["',' || LOWER(hashtags) || ',' LIKE ?" for _ in like_patterns] +
+                ["LOWER(added_by) LIKE ?" for _ in like_patterns]
+            )
+            like_patterns_extended = like_patterns + [f'%{identifier_norm}%']
+            query = f"SELECT name, original_url, is_hall_of_fame, hashtags, added_by FROM videos WHERE {query_conditions}"
 
-            async with db.execute(query, like_patterns) as cursor:
+            async with db.execute(query, like_patterns_extended) as cursor:
                 search_results = await cursor.fetchall()
         else:
             query = """
-            SELECT name, original_url, is_hall_of_fame, hashtags FROM videos
-            WHERE LOWER(name) LIKE ? OR ',' || LOWER(hashtags) || ',' LIKE ?
+            SELECT name, original_url, is_hall_of_fame, hashtags, added_by FROM videos
+            WHERE LOWER(name) LIKE ? OR ',' || LOWER(hashtags) || ',' LIKE ? OR LOWER(added_by) LIKE ?
             """
-            async with db.execute(query, (like_pattern, like_pattern)) as cursor:
+            async with db.execute(query, (like_pattern, like_pattern, like_pattern)) as cursor:
                 search_results = await cursor.fetchall()
 
     return search_results
@@ -115,10 +118,14 @@ async def autocomp_video_names(inter: ApplicationCommandInteraction, user_input:
     video_results = await fetch_videos_by_name_or_hashtag(user_input)
     suggestions = []
 
-    for name, _, _, hashtags in video_results:
+    for name, _, _, hashtags, added_by in video_results:
+        added_by_clean = added_by.split('#')[0]
+
         formatted_hashtags = ', '.join(
             [f'#{tag}' for tag in hashtags.split(',') if tag.strip()]) if hashtags else ''
-        suggestion_text = f"{name} [{formatted_hashtags}]" if formatted_hashtags else name
+
+        suggestion_text = f"{name} [{added_by_clean}]" + \
+            (f" [{formatted_hashtags}]" if formatted_hashtags else "")
         suggestions.append(OptionChoice(name=suggestion_text, value=name))
 
     return suggestions[:25]
