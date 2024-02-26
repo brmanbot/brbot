@@ -1,9 +1,14 @@
 import math
+import re
 import disnake
 from disnake.ext import commands
 from utils import fetch_all_hashtags
 from config import GUILD_IDS
 import uuid
+
+
+def natural_sort_key(s):
+    return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
 
 
 class ListHashtags(commands.Cog):
@@ -17,9 +22,10 @@ class ListHashtags(commands.Cog):
     )
     async def list_hashtags(self, inter: disnake.ApplicationCommandInteraction):
         hashtags = await fetch_all_hashtags()
-        if hashtags:
-            embed, total_pages = await self.create_hashtags_embed(hashtags, 1)
-            view = HashtagPaginator(inter, hashtags, total_pages)
+        hashtags_sorted = sorted(hashtags, key=natural_sort_key)
+        if hashtags_sorted:
+            embed, total_pages = await self.create_hashtags_embed(hashtags_sorted, 1)
+            view = HashtagPaginator(inter, hashtags_sorted, total_pages)
             await inter.response.send_message(embed=embed, view=view)
         else:
             await inter.response.send_message("No hashtags found in the database.", ephemeral=True)
