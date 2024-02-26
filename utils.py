@@ -89,7 +89,6 @@ async def fetch_videos_by_name_or_hashtag(identifier: str):
         identifier_norm = identifier.lower().strip('%')
         like_pattern = f'%{identifier_norm}%'
 
-        # Check if the identifier is specifically for HOF videos
         if identifier_norm == 'hof':
             query = """
             SELECT name, original_url, is_hall_of_fame, hashtags, added_by FROM videos
@@ -130,8 +129,6 @@ async def autocomp_video_names(inter: ApplicationCommandInteraction, user_input:
         formatted_hashtags = ', '.join(
             [f'#{tag}' for tag in hashtags.split(',') if tag.strip()]) if hashtags else ''
 
-        # Construct suggestion text with conditional inclusion of HOF emoji
-        # Remove trailing space if no HOF emoji
         suggestion_text = f"{name} {hof_emoji}".strip()
         if added_by_clean:
             suggestion_text += f" [{added_by_clean}]"
@@ -148,10 +145,8 @@ async def fetch_all_hashtags():
         query = "SELECT DISTINCT hashtags FROM videos WHERE hashtags IS NOT NULL AND hashtags != ''"
         cursor = await db.execute(query)
         rows = await cursor.fetchall()
-        # Flatten the list of hashtag strings into a single list with all hashtags
         all_hashtags = set()
         for row in rows:
-            # Split each row's hashtags and add to the set
             hashtags = row[0].split(',')
             for ht in hashtags:
                 all_hashtags.add(ht.strip().lower())
