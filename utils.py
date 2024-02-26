@@ -451,7 +451,7 @@ async def fetch_tiktok_content_backup(url, http_session):
     async with http_session.post(tikwm_api_url, headers=headers, data=data) as response:
         if response.status == 200:
             tikwm_response = await response.json()
-            # print("Backup Method Response:", tikwm_response)
+            print("Backup Method Response:", tikwm_response)
             if tikwm_response['code'] == 0 and 'data' in tikwm_response:
                 if 'images' in tikwm_response['data'] and 'music' in tikwm_response['data']:
                     images = tikwm_response['data']['images']
@@ -492,7 +492,8 @@ async def fetch_tiktok_content(url, http_session, timeout=3):
 
         if response.status == 200:
             data = await response.json()
-            # print("Normal Method Response:", data)
+            print("Normal Method Response:", data)
+            # Check if the response indicates success
             if data.get("success"):
                 return {
                     'type': 'video',
@@ -501,8 +502,11 @@ async def fetch_tiktok_content(url, http_session, timeout=3):
                     'original_link': data["data"]["metadata"]["VideoURL"],
                     'sound_link': data["data"]["metadata"]["AudioURL"]
                 }
+            else:
+                print("Normal Method Failed, trying Backup Method")
+                return await fetch_tiktok_content_backup(url, http_session)
         else:
-            print("Normal Method Failed, trying Backup Method")
+            print("Normal Method Failed with bad status, trying Backup Method")
             return await fetch_tiktok_content_backup(url, http_session)
 
     except asyncio.TimeoutError:
@@ -510,7 +514,7 @@ async def fetch_tiktok_content(url, http_session, timeout=3):
         return await fetch_tiktok_content_backup(url, http_session)
     except Exception as e:
         print(f"An error occurred: {e}")
-        return None
+        return await fetch_tiktok_content_backup(url, http_session)
 
 
 async def download_media(url, http_session):
