@@ -11,7 +11,7 @@ class ListHashtags(commands.Cog):
         self.bot = bot
 
     @commands.slash_command(
-        name="listhashtags",
+        name="hashtags",
         description="List all unique hashtags in the database.",
         guild_ids=GUILD_IDS
     )
