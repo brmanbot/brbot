@@ -126,14 +126,67 @@ def setup(bot):
                 "Provide the URL of the video to save (TikTok, Instagram Reels, or Discord video URL).",
                 type=disnake.OptionType.string,
                 required=True
-            )
-        ] + [
+            ),
             disnake.Option(
-                name=f"hashtag_{i}",
-                description=f"Hashtag {i}.",
+                name=f"hashtag_1",
+                description=f"Hashtag 1.",
                 type=disnake.OptionType.string,
                 required=False,
-            ) for i in range(1, 11)
+            ),
+            disnake.Option(
+                name=f"hashtag_2",
+                description=f"Hashtag 2.",
+                type=disnake.OptionType.string,
+                required=False,
+            ),
+            disnake.Option(
+                name=f"hashtag_3",
+                description=f"Hashtag 3.",
+                type=disnake.OptionType.string,
+                required=False,
+            ),
+            disnake.Option(
+                name=f"hashtag_4",
+                description=f"Hashtag 4.",
+                type=disnake.OptionType.string,
+                required=False,
+            ),
+            disnake.Option(
+                name=f"hashtag_5",
+                description=f"Hashtag 5.",
+                type=disnake.OptionType.string,
+                required=False,
+            ),
+            disnake.Option(
+                name=f"hashtag_6",
+                description=f"Hashtag 6.",
+                type=disnake.OptionType.string,
+                required=False,
+            ),
+            disnake.Option(
+                name=f"hashtag_7",
+                description=f"Hashtag 7.",
+                type=disnake.OptionType.string,
+                required=False,
+            ),
+            disnake.Option(
+                name=f"hashtag_8",
+                description=f"Hashtag 8.",
+                type=disnake.OptionType.string,
+                required=False,
+            ),
+            disnake.Option(
+                name=f"hashtag_9",
+                description=f"Hashtag 9.",
+                type=disnake.OptionType.string,
+                required=False,
+            ),
+            disnake.Option(
+                name=f"hashtag_10",
+                description=f"Hashtag 10.",
+                type=disnake.OptionType.string,
+                required=False,
+            )
         ]
     )
     async def vid(inter: ApplicationCommandInteraction, colour: str, name: str, url: str, **kwargs):
@@ -209,3 +262,13 @@ def setup(bot):
     @vid.autocomplete("colour")
     async def vid_autocomplete_colour(inter: ApplicationCommandInteraction, user_input: str):
         return await autocomp_colours(inter, user_input)
+
+    async def autocomplete_hashtag(inter: ApplicationCommandInteraction, user_input: str):
+        all_hashtags = await fetch_all_hashtags()
+        filtered_hashtags = [
+            ht for ht in all_hashtags if user_input.lower() in ht.lower()]
+        return [OptionChoice(name=ht, value=ht) for ht in filtered_hashtags][:25]
+
+    hashtag_option_names = [f"hashtag_{i}" for i in range(1, 11)]
+    for option_name in hashtag_option_names:
+        vid.autocomplete(option_name)(autocomplete_hashtag)
