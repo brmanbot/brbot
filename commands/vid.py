@@ -83,12 +83,13 @@ async def create_conflict_message(conflict_details, video_manager):
     return "\n".join(conflict_messages)
 
 
-def normalize_discord_url(url):
+def normalize_discord_url(url: str) -> str:
     parsed_url = urlparse(url)
     if 'cdn.discordapp.com' in parsed_url.netloc or 'media.discordapp.net' in parsed_url.netloc:
-        normalized_url = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}"
+        netloc = 'cdn.discordapp.com' if 'media.discordapp.net' in parsed_url.netloc else parsed_url.netloc
+        normalized_url = f"{parsed_url.scheme}://{netloc}{parsed_url.path}"
         return normalized_url
-    return url
+    return None
 
 
 def normalize_hashtags(hashtags: list[str]) -> str:
@@ -204,7 +205,11 @@ def setup(bot):
         if not extracted_urls:
             await inter.followup.send("No valid URL found in the provided text.", ephemeral=True)
             return
+
         normalized_url = normalize_discord_url(extracted_urls[0])
+        if normalized_url is None:
+            await inter.followup.send("The provided URL is invalid. Please use a valid Discord attachment URL.", ephemeral=True)
+            return
 
         content_type = "tiktok" if "tiktok.com" in normalized_url else "instagram" if "instagram.com" in normalized_url else "discord"
         date_added = datetime.now().strftime("%d/%m/%Y")
