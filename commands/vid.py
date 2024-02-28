@@ -206,12 +206,17 @@ def setup(bot):
             await inter.followup.send("No valid URL found in the provided text.", ephemeral=True)
             return
 
-        normalized_url = normalize_discord_url(extracted_urls[0])
-        if normalized_url is None:
-            await inter.followup.send("The provided URL is invalid. Please use a valid Discord attachment URL.", ephemeral=True)
-            return
+        content_type = "tiktok" if "tiktok.com" in extracted_urls[
+            0] else "instagram" if "instagram.com" in extracted_urls[0] else "discord"
 
-        content_type = "tiktok" if "tiktok.com" in normalized_url else "instagram" if "instagram.com" in normalized_url else "discord"
+        if content_type == "discord":
+            normalized_url = normalize_discord_url(extracted_urls[0])
+            if normalized_url is None:
+                await inter.followup.send("The provided URL is invalid. Please use a valid Discord attachment URL.", ephemeral=True)
+                return
+        else:
+            normalized_url = extracted_urls[0]
+
         date_added = datetime.now().strftime("%d/%m/%Y")
         added_by = f"{inter.user.name}#{inter.user.discriminator}"
 
