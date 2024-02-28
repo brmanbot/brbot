@@ -356,29 +356,44 @@ async def insta_fetch_media(session, url):
 
     try:
         async with session.get(
-            "https://instagram230.p.rapidapi.com/post/details",
-            headers={"X-RapidAPI-Key": RAPID_API_KEY,
-                     "X-RapidAPI-Host": "instagram230.p.rapidapi.com"},
-            params={"shortcode": shortcode}
+                "https://instagram230.p.rapidapi.com/post/details",
+                headers={
+                    "X-RapidAPI-Key": RAPID_API_KEY,
+                    "X-RapidAPI-Host": "instagram230.p.rapidapi.com"
+                },
+                params={"shortcode": shortcode}
         ) as response:
-            # print(f"Response Status: {response.status}")
+            print(f"Response Status: {response.status}")
             if response.status == 200:
                 data = await response.json()
-                video_versions = data.get('data', {}).get('xdt_api__v1__media__shortcode__web_info', {
-                }).get('items', [{}])[0].get('video_versions', [])
-                if video_versions:
-                    video_url = video_versions[0].get('url')
-                    if video_versions:
-                        video_url = video_versions[0].get('url')
-                        if video_url:
+                # print("Full API Response:", data)
+                items = data.get('data', {}).get(
+                    'xdt_api__v1__media__shortcode__web_info', {}).get('items', [])
+                if not items:
+                    print("No items found. Trying Fallback Method.")
+                    return await insta_fetch_media_fallback(session, url, 'video', 0)
+
+                video_versions = items[0].get('video_versions', [])
+                if not video_versions:
+                    print("No video versions found. Trying Fallback Method.")
+                    return await insta_fetch_media_fallback(session, url, 'video', 0)
+
+                highest_quality_video_url = video_versions[0].get('url')
+                if highest_quality_video_url:
+                    async with session.get(highest_quality_video_url) as media_response:
+                        if media_response.status == 200:
                             return {
                                 'type': 'media',
-                                'media_content': video_url,
+                                'media_content': highest_quality_video_url,
                                 'original_link': f'https://www.instagram.com/p/{shortcode}'
                             }
+                        else:
+                            print(
+                                f"Accessing media URL failed with status {media_response.status}, trying Fallback Method.")
+                            return await insta_fetch_media_fallback(session, url, 'video', 0)
             else:
-                response_text = await response.text()
-                # print(f"Response Text: {response_text}")
+                print(
+                    f"API response unsuccessful with status {response.status}, trying Fallback Method.")
                 return await insta_fetch_media_fallback(session, url, 'video', 0)
     except asyncio.TimeoutError:
         print("Primary method timed out. Trying Fallback Method.")
