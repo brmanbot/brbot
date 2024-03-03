@@ -48,7 +48,7 @@ def setup(bot):
 
         for video_name, video_info in inter.bot.video_manager.videos_info.items():
             name_lower = video_name.lower()
-            hashtags = video_info.get("hashtags", "").lower().split(',')
+            hashtags = (video_info.get("hashtags") or "").lower().split(',')
             hashtags_clean = [tag.strip()
                               for tag in hashtags if tag.strip()]
 

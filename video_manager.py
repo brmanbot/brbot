@@ -69,6 +69,18 @@ class VideoManager:
         if video_name_lower in self.videos_info:
             self.videos_info[video_name_lower]['hashtags'] = updated_hashtags
 
+    # async def print_cached_data(self):
+    #     print("Cached Video Data:")
+    #     for video_name, video_info in self.videos_info.items():
+    #         print(f"Name: {video_name}")
+    #         print(f"URL: {video_info['original_url']}")
+    #         print(f"Color: {video_info.get('color', 'N/A')}")
+    #         print(f"Added By: {video_info['added_by']}")
+    #         print(f"Hashtags: {video_info['hashtags']}")
+    #         print(
+    #             f"Hall of Fame: {'Yes' if video_info['is_hall_of_fame'] else 'No'}")
+    #         print("----------------------------------------------------")
+
     async def load_videos_info(self):
         async with aiosqlite.connect(self.db_path) as db:
             query = """
@@ -87,6 +99,9 @@ class VideoManager:
                 }
                 for result in results
             }
+
+        # # Debug print
+        # await self.print_cached_data()
 
     async def load_data(self):
         try:
