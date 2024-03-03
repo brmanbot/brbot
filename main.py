@@ -11,6 +11,7 @@ print("Starting the bot...")
 
 async def setup_video_manager(bot):
     bot.video_manager = await VideoManager.create(bot)
+    await bot.video_manager.load_videos_info()
 
 
 async def setup_reaction_handler_on_restart(bot):

@@ -33,6 +33,8 @@ class ConfirmView(disnake.ui.View):
             video_name = video_info['name']
             await self.original_view.bot.video_manager.remove_video(
                 video_name, 'name', MOD_LOG, deleted_by_user)
+            await self.original_view.bot.video_manager.remove_video_from_cache(video_name.lower())
+
             await interaction.response.send_message(
                 f"Deleted `{video_name}` from the database.")
 

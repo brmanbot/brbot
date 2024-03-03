@@ -127,6 +127,8 @@ class RemoveHashtags(commands.Cog):
             await db.execute("UPDATE videos SET hashtags = ? WHERE name = ?", (updated_hashtags, name))
             await db.commit()
 
+            await self.bot.video_manager.update_video_hashtags_in_cache(name, updated_hashtags)
+
             removed_hashtags_str = ', '.join(
                 [f"#{ht}" for ht in hashtags_actually_removed])
             hashtag_or_hashtags = "hashtag" if len(

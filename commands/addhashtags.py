@@ -116,6 +116,8 @@ class AddHashtags(commands.Cog):
             await db.execute("UPDATE videos SET hashtags = ? WHERE name = ?", (updated_hashtags, name))
             await db.commit()
 
+            await self.bot.video_manager.update_video_info_in_cache(name, hashtags=updated_hashtags)
+
             await inter.response.send_message(f"Updated hashtags for `{name}`: `{updated_hashtags}`.", ephemeral=True)
 
     @addhashtags.autocomplete("name")

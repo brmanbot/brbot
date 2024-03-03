@@ -3,14 +3,17 @@ from utils import autocomp_colours, autocomp_video_names
 from config import GUILD_IDS
 from disnake import ApplicationCommandInteraction
 
+
 def setup(bot):
     @bot.slash_command(
         name="changevidcolour",
         description="Change the colour of a video in the database.",
         guild_ids=GUILD_IDS,
         options=[
-            disnake.Option("name", "The name of the video to change colour.", type=disnake.OptionType.string, required=True, autocomplete=True),
-            disnake.Option("colour", "The new colour for the video (Green, Red, or Yellow).", type=disnake.OptionType.string, required=True, autocomplete=True)
+            disnake.Option("name", "The name of the video to change colour.",
+                           type=disnake.OptionType.string, required=True, autocomplete=True),
+            disnake.Option("colour", "The new colour for the video (Green, Red, or Yellow).",
+                           type=disnake.OptionType.string, required=True, autocomplete=True)
         ]
     )
     async def changevidcolour(inter: disnake.ApplicationCommandInteraction, name: str, colour: str):
@@ -29,6 +32,8 @@ def setup(bot):
             return
 
         await bot.video_manager.change_video_color(name, colour.lower())
+        await bot.video_manager.change_video_color_in_cache(name, colour.lower())
+
         await inter.response.send_message(f"Moved `{name}` from `{old_colour.capitalize()}` to `{colour.capitalize()}` database.")
 
     @changevidcolour.autocomplete("colour")

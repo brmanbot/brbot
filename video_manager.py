@@ -12,6 +12,7 @@ class VideoManager:
     def __init__(self, bot):
         self.bot = bot
         self.bot.video_lists = {}
+        self.videos_info = {}
         self.last_reset = {}
         self.played_videos = {}
         self.hall_of_fame = []
@@ -25,9 +26,72 @@ class VideoManager:
             results = await cursor.fetchall()
             self.hall_of_fame = [result[4] for result in results]
 
+    async def update_video_info_in_cache(self, name, **updates):
+        video_name_lower = name.lower()
+        video_info = self.videos_info.get(video_name_lower)
+
+        if video_info:
+            for key, value in updates.items():
+                video_info[key] = value
+
+    async def change_video_color_in_cache(self, video_name, new_color):
+        video_name_lower = video_name.lower()
+        video_info = self.videos_info.get(video_name_lower)
+        if video_info:
+            video_info['color'] = new_color
+
+    async def add_video_to_cache(self, name, **details):
+        video_name_lower = name.lower()
+        default_video_details = {
+            "url": "",
+            "color": "",
+            "original_url": "",
+            "added_by": "",
+            "tiktok_author_link": None,
+            "tiktok_original_link": None,
+            "tiktok_sound_link": None,
+            "insta_original_link": None,
+            "date_added": "",
+            "hashtags": "",
+            "is_hall_of_fame": 0,
+        }
+
+        updated_video_details = {**default_video_details, **details}
+
+        self.videos_info[video_name_lower] = updated_video_details
+
+    async def remove_video_from_cache(self, video_name):
+        if video_name in self.videos_info:
+            del self.videos_info[video_name]
+
+    async def update_video_hashtags_in_cache(self, video_name, updated_hashtags):
+        video_name_lower = video_name.lower()
+        if video_name_lower in self.videos_info:
+            self.videos_info[video_name_lower]['hashtags'] = updated_hashtags
+
+    async def load_videos_info(self):
+        async with aiosqlite.connect(self.db_path) as db:
+            query = """
+                SELECT name, original_url, is_hall_of_fame, hashtags, added_by 
+                FROM videos
+            """
+            async with db.execute(query) as cursor:
+                results = await cursor.fetchall()
+
+            self.videos_info = {
+                result[0].lower(): {
+                    "original_url": result[1],
+                    "is_hall_of_fame": result[2],
+                    "hashtags": result[3],
+                    "added_by": result[4]
+                }
+                for result in results
+            }
+
     async def load_data(self):
         try:
             if not os.path.isfile("video_data.json"):
+                await self.load_videos_info()
                 await self.load_hall_of_fame()
                 self.save_data()
             else:

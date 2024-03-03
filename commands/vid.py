@@ -266,6 +266,21 @@ def setup(bot):
             hashtags=normalized_hashtags
         )
 
+        await bot.video_manager.add_video_to_cache(
+            name=name,
+            url=short_url,
+            color=colour.lower(),
+            original_url=original_discord_url,
+            added_by=added_by,
+            tiktok_author_link=author_link if content_type == "tiktok" else None,
+            tiktok_original_link=tiktok_original_link,
+            tiktok_sound_link=sound_link if content_type == "tiktok" else None,
+            insta_original_link=insta_original_link,
+            date_added=date_added,
+            hashtags=normalized_hashtags,
+            is_hall_of_fame=0
+        )
+
         bot.video_manager.save_data()
         await inter.followup.send(f"Saved `{name}` in the `{colour}` database with hashtags: `{normalized_hashtags}`.", ephemeral=True)
 
