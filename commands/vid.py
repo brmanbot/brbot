@@ -231,10 +231,7 @@ def setup(bot):
         conflict_details = await bot.video_manager.video_exists(
             name, original_discord_url, tiktok_original_link, insta_original_link)
 
-        if conflict_details:
-            conflict_message = await create_conflict_message(conflict_details, bot.video_manager)
-            await inter.followup.send(f"Video(s) exist with the same information:\n{conflict_message}", ephemeral=True)
-            return
+        final_url_for_storage = None
 
         if content_type in ["tiktok", "instagram"]:
             video_data = await download_video(bot.http_session, video_url)
@@ -244,19 +241,29 @@ def setup(bot):
 
             if upload_channel := bot.get_channel(int(TIKTOK_ARCHIVE_CHANNEL)):
                 video_message = await upload_channel.send(file=disnake.File(fp=video_data, filename=f"{name}.mp4"))
-                original_discord_url = video_message.attachments[0].url
-                short_url = await shorten_url(original_discord_url)
+                discord_video_url = video_message.attachments[0].url
+                normalized_discord_url = normalize_discord_url(
+                    discord_video_url)
+                final_url_for_storage = await shorten_url(normalized_discord_url)
             else:
                 await inter.followup.send("Invalid upload channel ID.", ephemeral=True)
                 return
         elif content_type == "discord":
-            short_url = await shorten_url(url)
+            normalized_discord_url = normalize_discord_url(extracted_urls[0])
+            if normalized_discord_url is None:
+                await inter.followup.send("The provided URL is invalid. Please use a valid Discord attachment URL.", ephemeral=True)
+                return
+            final_url_for_storage = await shorten_url(normalized_discord_url)
+
+        if not final_url_for_storage:
+            await inter.followup.send("Failed to process the video URL.", ephemeral=True)
+            return
 
         await bot.video_manager.add_video_to_database(
             name=name,
-            url=short_url,
+            url=final_url_for_storage,
             color=colour.lower(),
-            original_url=original_discord_url,
+            original_url=normalized_discord_url,
             added_by=added_by,
             tiktok_author_link=author_link if content_type == "tiktok" else None,
             tiktok_original_link=tiktok_original_link,
@@ -268,9 +275,9 @@ def setup(bot):
 
         await bot.video_manager.add_video_to_cache(
             name=name,
-            url=short_url,
+            url=final_url_for_storage,
             color=colour.lower(),
-            original_url=original_discord_url,
+            original_url=normalized_discord_url,
             added_by=added_by,
             tiktok_author_link=author_link if content_type == "tiktok" else None,
             tiktok_original_link=tiktok_original_link,
