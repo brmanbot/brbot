@@ -30,10 +30,10 @@ def setup(bot):
             is_hall_of_fame = video_info["is_hall_of_fame"]
             hof_emoji = "🏆 " if is_hall_of_fame else ""
             message = f"{hof_emoji}[{identifier}]({video_info['original_url']})"
+            await ctx.response.send_message(message)
         else:
             message = "No matching videos found"
-
-        await ctx.response.send_message(message)
+            await ctx.response.send_message(message, ephemeral=True)
 
     @getvid.autocomplete("identifier")
     async def getvid_autocomplete(inter: ApplicationCommandInteraction, user_input: str):
