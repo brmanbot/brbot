@@ -289,7 +289,12 @@ def setup(bot):
         )
 
         bot.video_manager.save_data()
-        await inter.followup.send(f"Saved `{name}` in the `{colour}` database with hashtags: `{normalized_hashtags}`.", ephemeral=True)
+        if normalized_hashtags:
+            hashtags_message = f"with hashtags: `{normalized_hashtags}`"
+        else:
+            hashtags_message = "with no hashtags"
+
+        await inter.followup.send(f"Saved `{name}` in the `{colour}` database {hashtags_message}.", ephemeral=True)
 
     @vid.autocomplete("colour")
     async def vid_autocomplete_colour(inter: ApplicationCommandInteraction, user_input: str):
