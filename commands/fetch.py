@@ -1,4 +1,5 @@
 import re
+import aiohttp
 import disnake
 import io
 from urllib.parse import quote, unquote
@@ -91,7 +92,7 @@ def setup(bot):
         await ctx.send("Processing your request...", ephemeral=True)
         all_urls = [url] + [value for key, value in urls.items() if value]
 
-        async with bot.http_session as session:
+        async with aiohttp.ClientSession() as session:
             first_media = True
             for media_url in all_urls:
                 first_media = await process_urls(ctx, [media_url], caption, session, first_media)
