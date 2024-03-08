@@ -75,8 +75,8 @@ async def download_and_send_media(ctx, media_url, caption, session, first_media)
 
 def setup(bot):
     @bot.slash_command(
-        name="fetchmedia",
-        description="Fetch media from various sources using the Cobalt API.",
+        name="fetch",
+        description="Fetch media from various sources.",
         options=[
             disnake.Option(name="url", description="Enter the media URL.",
                            type=disnake.OptionType.string, required=True),
