@@ -73,7 +73,7 @@ async def process_urls(ctx, urls, caption, session, first_media):
                     media_url = item.get('url')
                     if media_url:
                         await download_and_send_media(ctx, media_url, caption if first_media else None, session, first_media)
-                        first_media = False  # Update after the first media has been processed
+                        first_media = False
             else:
                 await ctx.send(f"Failed to process URL: {url}.", ephemeral=True)
         else:
