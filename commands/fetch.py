@@ -9,21 +9,21 @@ COMMON_HEADERS = {
 }
 
 
-async def fetch_media_with_cobalt(session, url):
+async def fetch_media_with_cobalt(session, url, quality="1080p", audio_only=False):
     encoded_url = quote(url, safe='')
     request_body = {
         "url": encoded_url,
         "vCodec": "h264",
-        "vQuality": "1080p",
+        "vQuality": quality.lower(),
         "aFormat": "mp3",
         "filenamePattern": "classic",
-        "isAudioOnly": False,
+        "isAudioOnly": audio_only,
         "isNoTTWatermark": True,
         "isTTFullAudio": False,
         "isAudioMuted": False,
         "dubLang": False,
         "disableMetadata": False,
-        "twitterGif": False,
+        "twitterGif": True,
     }
     headers = {**COMMON_HEADERS, "Accept": "application/json",
                "Content-Type": "application/json"}
@@ -40,30 +40,47 @@ async def fetch_media_with_cobalt(session, url):
 async def download_and_send_media(ctx, media_url, caption, session, first_media):
     try:
         async with session.head(media_url, headers=COMMON_HEADERS) as head_response:
-            if head_response.status != 200 or int(head_response.headers.get('Content-Length', 0)) > (100 * 1024 * 1024):
-                await ctx.send(f"Error processing\n{media_url}\nFile is too large (>100mb) or not accessible", ephemeral=True)
+            content_length = head_response.headers.get('Content-Length', 0)
+            if head_response.status != 200 or int(content_length) > (100 * 1024 * 1024):
+                error_message = f"Error: {media_url} is too large (>100MB) or not accessible."
+                if len(error_message) > 2000:
+                    error_message = error_message[:1997] + "..."
+                await ctx.send(error_message, ephemeral=True)
                 return
 
         async with session.get(media_url, headers=COMMON_HEADERS) as media_response:
             if media_response.status == 200:
                 content_disposition = media_response.headers.get(
                     'Content-Disposition', '')
-                filename = unquote(re.findall(r'filename\*?=([^;]+)', content_disposition)[0].split(
-                    "'")[-1]) if 'filename=' in content_disposition else media_url.split("/")[-1].split("?")[0]
+                filename_regex = r'filename\*?=([^;]+)'
+                filename_list = re.findall(filename_regex, content_disposition)
+                filename = (unquote(filename_list[0].split(
+                    "'")[-1]) if filename_list else media_url.split("/")[-1].split("?")[0])
+
                 file = disnake.File(fp=io.BytesIO(await media_response.read()), filename=filename)
 
-                message_content = f"{ctx.author.mention}: {caption}" if first_media and caption else f"{ctx.author.mention} used /fetch" if first_media else None
-                await ctx.channel.send(content=message_content, file=file)
+                if first_media and caption:
+                    message_content = f"{ctx.author.mention}: {caption}"
+                elif first_media:
+                    message_content = f"{ctx.author.mention} used /fetch"
+                else:
+                    message_content = None
 
+                if message_content and len(message_content) > 2000:
+                    message_content = message_content[:1997] + "..."
+                await ctx.channel.send(content=message_content, file=file)
             else:
                 await ctx.send(f"Failed to fetch media content for URL: {media_url}. HTTP {media_response.status}", ephemeral=True)
     except Exception as e:
-        await ctx.send(f"Error processing {media_url}: {str(e)}", ephemeral=True)
+        error_message = f"Error processing {media_url}: {str(e)}"
+        if len(error_message) > 2000:
+            error_message = error_message[:1997] + "..."
+        await ctx.send(error_message, ephemeral=True)
 
 
-async def process_urls(ctx, urls, caption, session, first_media):
+async def process_urls(ctx, urls, caption, session, first_media, quality="1080p", audio_only=False):
     for url in urls:
-        result = await fetch_media_with_cobalt(session, url)
+        result = await fetch_media_with_cobalt(session, url, quality, audio_only)
         if result:
             status = result.get('status')
             if status in ['picker', 'success', 'stream', 'redirect']:
@@ -88,17 +105,24 @@ def setup(bot):
         options=[
             disnake.Option(name="url", description="Enter the media URL.",
                            type=disnake.OptionType.string, required=True),
+            disnake.Option(name="quality", description="Select the video quality.", type=disnake.OptionType.string, required=False, choices=[
+                disnake.OptionChoice(name="1080p", value="1080p"),
+                disnake.OptionChoice(name="720p", value="720p"),
+                disnake.OptionChoice(name="480p", value="480p"),
+                disnake.OptionChoice(name="360p", value="360p"),
+            ]),
+            disnake.Option(name="audio_only", description="Fetch audio only.",
+                           type=disnake.OptionType.boolean, required=False),
             disnake.Option(name="caption", description="Optional caption for the media.",
                            type=disnake.OptionType.string, required=False)
         ] + [
             disnake.Option(name=f"url_{i}", description=f"Additional media URL #{i}.", type=disnake.OptionType.string, required=False) for i in range(2, 11)
         ]
     )
-    async def fetch_media(ctx, url, caption=None, **urls):
+    async def fetch_media(ctx, url, quality="1080p", audio_only=False, caption=None, **urls):
         await ctx.send("Processing your request...", ephemeral=True)
         all_urls = [url] + [value for key, value in urls.items() if value]
 
         async with aiohttp.ClientSession() as session:
             first_media = True
-            for media_url in all_urls:
-                first_media = await process_urls(ctx, [media_url], caption, session, first_media)
+            first_media = await process_urls(ctx, all_urls, caption, session, first_media, quality, audio_only)
