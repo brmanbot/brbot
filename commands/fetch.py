@@ -27,11 +27,19 @@ async def fetch_media_with_cobalt(session, url, quality="1080p", audio_only=Fals
     }
     headers = {**COMMON_HEADERS, "Accept": "application/json",
                "Content-Type": "application/json"}
+
+    # # Print the request URL and body for debugging
+    # print(f"Request URL: https://co.wuk.sh/api/json")
+    # print(f"Request Body: {request_body}")
+
     async with session.post("https://co.wuk.sh/api/json", json=request_body, headers=headers) as response:
+        response_text = await response.text()  # Capture the response text
         if response.status == 200:
+            # # Print the API response for debugging
+            # print(f"API Response: {response_text}")
             return await response.json()
         else:
-            error_details = await response.text()
+            error_details = response_text  # Use the captured text
             print(
                 f"Failed to fetch from Cobalt API: HTTP {response.status}, Details: {error_details}")
             return None
@@ -94,7 +102,7 @@ async def process_urls(ctx, urls, caption, session, first_media, quality="1080p"
             else:
                 await ctx.send(f"Failed to process URL: {url}.", ephemeral=True)
         else:
-            await ctx.send(f"Failed to fetch media for URL: {url}.", ephemeral=True)
+            await ctx.send(f"Failed to fetch media for URL: {url}."+"\nCheck API status: https://status.cobalt.tools/", ephemeral=True)
     return first_media
 
 
