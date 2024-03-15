@@ -231,6 +231,11 @@ def setup(bot):
         conflict_details = await bot.video_manager.video_exists(
             name, original_discord_url, tiktok_original_link, insta_original_link)
 
+        if conflict_details:
+            conflict_message = await create_conflict_message(conflict_details, bot.video_manager)
+            await inter.followup.send(f"Conflict detected:\n{conflict_message}", ephemeral=True)
+            return
+
         final_url_for_storage = None
 
         if content_type in ["tiktok", "instagram"]:
