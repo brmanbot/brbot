@@ -626,8 +626,6 @@ async def process_slideshow(image_urls, audio_url, http_session, slideshow_lengt
     else:
         slide_duration = slideshow_length
 
-    slide_duration = slideshow_length
-
     if not images_data or all(img is None for img in images_data):
         return None, "No images to process."
 
@@ -635,13 +633,18 @@ async def process_slideshow(image_urls, audio_url, http_session, slideshow_lengt
     processed_clips = create_image_clips(
         images_data, video_frame_size, slide_duration)
 
-    total_video_duration = len(processed_clips) * slide_duration
-    total_loops = math.ceil(total_video_duration /
-                            (slide_duration * len(images_data)))
+    if num_images == 1:
+        total_video_duration = slide_duration
+    else:
+        total_video_duration = len(processed_clips) * slide_duration
+        total_loops = math.ceil(total_video_duration /
+                                (slide_duration * len(images_data)))
 
-    final_clips = []
-    for _ in range(total_loops):
-        final_clips.extend(processed_clips)
+        final_clips = []
+        for _ in range(total_loops):
+            final_clips.extend(processed_clips)
+
+    final_clips = processed_clips if num_images == 1 else final_clips
 
     try:
         looped_audio_clip = audio_loop(
