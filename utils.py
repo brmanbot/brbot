@@ -486,7 +486,7 @@ async def fetch_tiktok_content_backup(url, http_session):
             return {'error': "Failed to fetch TikTok content."}
 
 
-async def fetch_tiktok_content(url, http_session, timeout=3):
+async def fetch_tiktok_content(url, http_session, timeout=5):
     if '/photo/' in url:
         url = url.replace('/photo/', '/video/')
 
